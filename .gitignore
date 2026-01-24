@@ -1,0 +1,11 @@
+# Folder Vault (Privat) - JANGAN DIHAPUS DARI SINI
+vault/
+
+# Wails Build Folder
+build/bin/
+frontend/dist/
+frontend/node_modules/
+
+# System Files
+.DS_Store
+Thumbs.db
