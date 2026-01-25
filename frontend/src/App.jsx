@@ -206,8 +206,7 @@ function App() {
         try {
             await SetBookCover(currentBook, modalImageFile);
             showLoadingStatus(`Cover untuk buku '${currentBook.replace(/_/g, " ")}' telah diubah.`);
-            // No need to call fetchBooks, just refresh images
-            forceImageRefresh();
+            await fetchBooks(); // Reload books to show the new cover in the library
         } catch(error) {
             showLoadingStatus(`Error: ${error}`);
             console.error("Failed to set cover:", error);
@@ -285,7 +284,10 @@ function App() {
     const renderHeader = () => (
          <header className="app-header">
             <div className="header-content"><h1>Gallery Bookshelf</h1><p>Pilih sebuah buku untuk dilihat atau tambahkan yang baru.</p></div>
-            <button onClick={handleLock} className="lock-btn" title="Lock Application"><LockIcon /></button>
+            <div className="header-actions">
+                <button onClick={fetchBooks} className="refresh-btn" title="Refresh Bookshelf"><SyncIcon /></button>
+                <button onClick={handleLock} className="lock-btn" title="Lock Application"><LockIcon /></button>
+            </div>
         </header>
     );
 
@@ -318,7 +320,9 @@ function App() {
             <header className="gallery-header">
                 <button onClick={() => { setView('library'); setCurrentBook(null); fetchBooks(); }} className="back-btn">← Kembali</button>
                 <h1>{currentBook.replace(/_/g, " ")}</h1>
-                <button onClick={handleLock} className="lock-btn" title="Lock Application"><LockIcon /></button>
+                <div className="header-actions">
+                    <button onClick={handleLock} className="lock-btn" title="Lock Application"><LockIcon /></button>
+                </div>
             </header>
             <div className="masonry-grid">
                 {imageFilenames.map((fileName, index) => (

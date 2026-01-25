@@ -46,340 +46,732 @@
     margin: 0;
 }
 
-/* --- Auth Screen --- */
-.login-container {
+
+
+.app-header .header-actions {
+
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    width: 100%;
-    background: var(--primary-bg);
-}
-.login-box {
-    background: var(--secondary-bg);
-    padding: 2.5rem 3rem;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-}
-.login-box h1 {
-    color: var(--accent-color);
-    margin-bottom: 0.5rem;
-}
-.login-box p {
-    color: #aaa;
-    margin-bottom: 2rem;
-}
-.auth-input {
-    width: 100%;
-    padding: 12px;
-    font-size: 1.2rem;
-    background: var(--primary-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--font-color);
-    margin-bottom: 1.5rem;
-    box-sizing: border-box; /* Important */
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-.auth-input:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(0, 150, 199, 0.3);
-}
-.auth-button {
-    width: 100%;
-    padding: 12px;
-    font-size: 1.2rem;
-    font-weight: bold;
-    background: var(--accent-color);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-.auth-button:hover {
-    background: var(--accent-hover);
-}
-.auth-error {
-    color: var(--error-color);
-    margin-top: 1rem;
-    font-weight: bold;
+
+    gap: 0.75rem;
+
 }
 
-/* Lock Button */
-.lock-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--font-color);
-    padding: 0.5rem;
-    border-radius: 8px;
-    cursor: pointer;
+
+
+/* --- Auth Screen --- */
+
+.login-container {
+
     display: flex;
-    align-items: center;
+
+    flex-direction: column;
+
     justify-content: center;
+
+    align-items: center;
+
+    height: 100vh;
+
+    width: 100%;
+
+    background: var(--primary-bg);
+
+}
+
+.login-box {
+
+    background: var(--secondary-bg);
+
+    padding: 2.5rem 3rem;
+
+    border-radius: 12px;
+
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+
+    width: 100%;
+
+    max-width: 400px;
+
+    text-align: center;
+
+}
+
+.login-box h1 {
+
+    color: var(--accent-color);
+
+    margin-bottom: 0.5rem;
+
+}
+
+.login-box p {
+
+    color: #aaa;
+
+    margin-bottom: 2rem;
+
+}
+
+.auth-input {
+
+    width: 100%;
+
+    padding: 12px;
+
+    font-size: 1.2rem;
+
+    background: var(--primary-bg);
+
+    border: 1px solid var(--border-color);
+
+    border-radius: 6px;
+
+    color: var(--font-color);
+
+    margin-bottom: 1.5rem;
+
+    box-sizing: border-box; /* Important */
+
+    transition: border-color 0.2s, box-shadow 0.2s;
+
+}
+
+.auth-input:focus {
+
+    outline: none;
+
+    border-color: var(--accent-color);
+
+    box-shadow: 0 0 0 3px rgba(0, 150, 199, 0.3);
+
+}
+
+.auth-button {
+
+    width: 100%;
+
+    padding: 12px;
+
+    font-size: 1.2rem;
+
+    font-weight: bold;
+
+    background: var(--accent-color);
+
+    color: white;
+
+    border: none;
+
+    border-radius: 6px;
+
+    cursor: pointer;
+
+    transition: background-color 0.2s;
+
+}
+
+.auth-button:hover {
+
+    background: var(--accent-hover);
+
+}
+
+.auth-error {
+
+    color: var(--error-color);
+
+    margin-top: 1rem;
+
+    font-weight: bold;
+
+}
+
+
+
+/* Buttons (Lock, Refresh) */
+
+.lock-btn, .refresh-btn {
+
+    background: transparent;
+
+    border: 1px solid var(--border-color);
+
+    color: var(--font-color);
+
+    padding: 0.5rem;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+
 }
-.lock-btn:hover {
+
+.lock-btn:hover, .refresh-btn:hover {
+
     background: var(--tertiary-bg);
+
     border-color: var(--accent-hover);
+
     color: var(--accent-hover);
+
 }
+
+
+
 /* For the gallery header, ensure it aligns with other items */
+
 .gallery-header .lock-btn {
+
     margin-left: auto; /* Push it to the far right */
+
 }
+
 
 
 /* --- Library View (Bookshelf) --- */
+
 .book-grid {
+
     display: grid;
+
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+
     gap: 1.5rem;
+
 }
+
+
 
 .book-card {
+
     background: var(--secondary-bg);
+
     border-radius: 8px;
+
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+
     overflow: hidden;
+
     display: flex;
+
     flex-direction: column;
-    position: relative; /* For positioning the delete button */
+
+    position: relative; /* For positioning the actions */
+
 }
+
+
 
 .book-card:hover {
+
     transform: translateY(-5px);
+
     box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+
 }
+
+.book-card:hover .book-card-actions {
+
+    opacity: 1;
+
+}
+
+
+
+
 
 /* Add a wrapper for the clickable area */
+
 .book-card-content {
+
     cursor: pointer;
+
     display: flex;
+
     flex-direction: column;
+
     height: 100%;
+
 }
 
-.delete-book-btn {
+
+
+.book-card-actions {
+
     position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    cursor: pointer;
+
+    bottom: 0;
+
+    left: 0;
+
+    right: 0;
+
     display: flex;
+
+    justify-content: space-around;
+
     align-items: center;
-    justify-content: center;
-    opacity: 0; /* Hidden by default */
-    transition: opacity 0.2s ease, background-color 0.2s ease;
+
+    background: rgba(0,0,0,0.7);
+
+    padding: 8px;
+
+    opacity: 0;
+
+    transition: opacity 0.2s ease-in-out;
+
     z-index: 5;
+
 }
 
-.book-card:hover .delete-book-btn {
-    opacity: 1; /* Show on hover */
+.book-card-actions button {
+
+    background: transparent;
+
+    border: none;
+
+    color: #ddd;
+
+    cursor: pointer;
+
+    padding: 4px;
+
+    transition: color 0.2s;
+
 }
 
-.delete-book-btn:hover {
-    background: var(--error-color);
+.book-card-actions button:hover {
+
+    color: var(--accent-color);
+
 }
+
+.book-card-actions svg {
+
+    width: 18px;
+
+    height: 18px;
+
+}
+
+
+
+
 
 .book-cover {
+
     aspect-ratio: 3 / 4;
+
     width: 100%;
+
     background-color: var(--tertiary-bg);
+
     display: flex;
+
     align-items: center;
+
     justify-content: center;
+
     border-bottom: 3px solid var(--accent-color);
+
 }
+
 .book-cover img {
+
     width: 100%;
+
     height: 100%;
+
     object-fit: cover;
+
 }
+
 .book-cover-placeholder {
+
     font-size: 3rem;
+
     color: #555;
+
 }
+
+
 
 .book-title {
+
     font-weight: bold;
+
     padding: 0.75rem;
+
     word-break: break-word;
+
     flex-grow: 1; /* Ensure it takes up space */
+
+    padding-bottom: 50px; /* Space for the actions */
+
 }
+
+
 
 .fab {
+
     position: fixed;
+
     bottom: 2rem;
+
     right: 2rem;
+
     width: 60px;
+
     height: 60px;
+
     border-radius: 50%;
+
     background-color: var(--accent-color);
+
     color: white;
+
     border: none;
+
     font-size: 2.5rem;
+
     line-height: 60px;
+
     cursor: pointer;
+
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+
     transition: background-color 0.2s ease, transform 0.2s ease;
+
 }
+
 .fab:hover {
+
     background-color: var(--accent-hover);
+
     transform: scale(1.1);
+
 }
+
+
 
 /* --- Gallery View (Masonry) --- */
+
 .gallery-header {
+
     display: flex;
+
     align-items: center;
+
     gap: 1.5rem;
+
     margin-bottom: 1.5rem;
+
     border-bottom: 1px solid var(--border-color);
+
     padding-bottom: 1rem;
+
 }
+
 .gallery-header h1 { margin: 0; font-size: 2rem; }
 
+.gallery-header .header-actions { margin-left: auto; }
+
+
+
 .back-btn {
+
     background: var(--secondary-bg);
+
     border: 1px solid var(--border-color);
+
     color: var(--font-color);
+
     font-size: 1rem;
+
     padding: 0.5rem 1rem;
+
     border-radius: 5px;
+
     cursor: pointer;
+
     transition: background-color 0.2s ease;
+
 }
+
 .back-btn:hover { background: var(--tertiary-bg); }
 
+
+
 .masonry-grid {
+
     display: grid;
+
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+
     gap: 16px;
+
 }
+
+
 
 .masonry-item {
+
     cursor: zoom-in;
+
     overflow: hidden;
+
     border-radius: 8px;
+
     aspect-ratio: 1 / 1; /* Make it square */
+
 }
+
 .masonry-item img {
+
     width: 100%;
+
     height: 100%;
+
     object-fit: cover; /* Cover the square area */
+
     display: block;
+
     transition: transform 0.3s ease;
+
     will-change: transform;
+
 }
+
 .masonry-item:hover img {
+
     transform: scale(1.05);
+
 }
+
+
 
 /* --- Fullscreen Modal & Navigation --- */
+
 .modal-overlay {
+
     position: fixed;
+
     top: 0;
+
     left: 0;
+
     width: 100%;
+
     height: 100%;
+
     background: rgba(0, 0, 0, 0.9);
+
     display: flex;
+
     justify-content: center;
+
     align-items: center;
+
     cursor: zoom-out;
+
     z-index: 1000;
+
 }
+
+
 
 .modal-content {
+
     max-width: 90vw;
+
     max-height: 90vh;
+
     object-fit: contain;
+
     cursor: default;
+
 }
+
+
 
 .modal-nav {
+
     position: absolute;
+
     top: 50%;
+
     transform: translateY(-50%);
+
     background: rgba(40, 40, 40, 0.5);
+
     color: white;
+
     border: none;
+
     font-size: 3rem;
+
     cursor: pointer;
+
     width: 60px;
+
     height: 100px;
+
     display: flex;
+
     justify-content: center;
+
     align-items: center;
+
     border-radius: 8px;
+
     transition: background-color 0.2s ease;
+
     user-select: none; /* Prevents text selection on double click */
+
     z-index: 1001;
+
 }
+
 .modal-nav:hover { background: rgba(0, 0, 0, 0.7); }
+
 .modal-nav.prev { left: 1rem; }
+
 .modal-nav.next { right: 1rem; }
 
-.delete-image-btn {
+
+
+.modal-toolbar {
+
     position: absolute;
-    bottom: 1.5rem;
+
+    top: 1.5rem;
+
     right: 1.5rem;
-    background: rgba(40, 40, 40, 0.6);
-    color: #ffdddd;
-    border: 1px solid #ffdddd;
-    border-radius: 8px;
-    padding: 0.75rem 1.25rem;
-    font-size: 1rem;
-    font-weight: bold;
-    cursor: pointer;
+
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    transition: background-color 0.2s ease, color 0.2s ease;
+
+    flex-direction: column;
+
+    gap: 1rem;
+
     z-index: 1001;
+
 }
-.delete-image-btn:hover {
-    background: var(--error-color);
+
+
+
+.modal-toolbar button {
+
+    background: rgba(40, 40, 40, 0.6);
+
+    color: #eee;
+
+    border: 1px solid #eee;
+
+    border-radius: 8px;
+
+    padding: 0.75rem 1.25rem;
+
+    font-size: 1rem;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 0.5rem;
+
+    transition: background-color 0.2s ease, color 0.2s ease;
+
+}
+
+
+
+.modal-toolbar button:hover {
+
+    background: var(--accent-color);
+
     color: white;
-    border-color: var(--error-color);
+
+    border-color: var(--accent-color);
+
 }
+
+.modal-toolbar button:nth-child(2):hover {
+
+    background: var(--error-color);
+
+    border-color: var(--error-color);
+
+}
+
+
+
+
 
 /* --- Status & Loading --- */
+
 .loading-overlay {
+
     position: fixed;
+
     top: 0;
+
     left: 0;
+
     width: 100%;
+
     height: 100%;
+
     background: rgba(0, 0, 0, 0.7);
+
     display: flex;
+
     flex-direction: column;
+
     justify-content: center;
+
     align-items: center;
+
     z-index: 2000;
+
 }
+
 .loading-overlay div { /* Spinner */
+
     border: 5px solid #f3f3f340;
+
     border-top: 5px solid var(--accent-color);
+
     border-radius: 50%;
+
     width: 50px;
+
     height: 50px;
+
     animation: spin 1s linear infinite;
+
 }
+
 .loading-overlay p { margin-top: 1rem; font-size: 1.1rem; }
 
+
+
 @keyframes spin {
+
     0% { transform: rotate(0deg); }
+
     100% { transform: rotate(360deg); }
+
 }
