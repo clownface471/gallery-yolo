@@ -63,7 +63,8 @@ function App() {
         try {
             const bookList = await GetBooks();
             setBooks(bookList || []);
-            forceImageRefresh(); // Refresh images after fetching books (e.g., cover changes)
+            // Kita tidak memanggil forceImageRefresh() di sini agar cover tidak kedip-kedip,
+            // karena cover sekarang menggunakan Base64 yang tidak butuh cache busting URL.
         } catch (error) {
             setStatusMessage("Error: Gagal memuat daftar buku.");
             console.error("Failed to fetch books:", error);
@@ -136,7 +137,8 @@ function App() {
             if (!sourcePath) return;
             setIsLoading(true);
             setStatusMessage(`Mengimpor gambar ke buku '${bookName}'...`);
-            const result = await CreateBook(bookName, sourcePath, false); // syncMode = false
+            // syncMode = false
+            const result = await CreateBook(bookName, sourcePath, false); 
             setStatusMessage(result);
             await fetchBooks();
         } catch (error) {
@@ -155,7 +157,8 @@ function App() {
             if (!sourcePath) return;
             setIsLoading(true);
             setStatusMessage(`Sinkronisasi gambar untuk '${bookName}'...`);
-            const result = await CreateBook(bookName, sourcePath, true); // syncMode = true
+            // syncMode = true (Fitur Sync Aktif)
+            const result = await CreateBook(bookName, sourcePath, true); 
             showLoadingStatus(result);
             await fetchBooks();
         } catch (error) {
@@ -206,7 +209,7 @@ function App() {
         try {
             await SetBookCover(currentBook, modalImageFile);
             showLoadingStatus(`Cover untuk buku '${currentBook.replace(/_/g, " ")}' telah diubah.`);
-            await fetchBooks(); // Reload books to show the new cover in the library
+            await fetchBooks(); 
         } catch(error) {
             showLoadingStatus(`Error: ${error}`);
             console.error("Failed to set cover:", error);
@@ -232,6 +235,9 @@ function App() {
                     setSelectedIndex(nextIndex);
                     setModalImageFile(newImageFilenames[nextIndex]);
                 }
+                
+                // Force update cache buster untuk gallery agar gambar tidak 'nyangkut'
+                forceImageRefresh();
                 showLoadingStatus(`Gambar berhasil dihapus.`, 2000);
 
             } catch (error) {
@@ -299,7 +305,8 @@ function App() {
                     <div key={book.name} className="book-card">
                         <div className="book-card-content" onClick={() => openBook(book.name)}>
                             <div className="book-cover">
-                                {book.cover ? <img src={`${book.cover}&t=${imageCacheBuster}`} alt={`Cover for ${book.name}`} /> : <div className="book-cover-placeholder">📚</div>}
+                                {/* Base64 Cover (Tidak perlu ?t=) */}
+                                {book.cover ? <img src={book.cover} alt={`Cover for ${book.name}`} /> : <div className="book-cover-placeholder">📚</div>}
                             </div>
                             <div className="book-title">{book.name.replace(/_/g, " ")}</div>
                         </div>
@@ -328,6 +335,7 @@ function App() {
                 {imageFilenames.map((fileName, index) => (
                     <div key={fileName} className="masonry-item" onClick={() => openModal(index)}>
                         <img 
+                            // Gallery Image (Pakai ?t= untuk cache busting)
                             src={`/img/${encodeURIComponent(currentBook)}/${encodeURIComponent(fileName)}?t=${imageCacheBuster}`}
                             alt={`Image ${index + 1}`}
                             loading="lazy" 
@@ -340,6 +348,7 @@ function App() {
 
     const renderModal = () => {
         if (!modalImageFile) return null;
+        // Fullscreen Image (Pakai ?t= untuk cache busting)
         const imageUrl = `/img/${encodeURIComponent(currentBook)}/${encodeURIComponent(modalImageFile)}?t=${imageCacheBuster}`;
         return (
             <div className="modal-overlay" onClick={closeModal}>

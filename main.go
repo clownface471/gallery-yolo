@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -29,6 +30,7 @@ func NewFileLoader() *FileLoader {
 	if err != nil {
 		log.Fatalf("Fatal: could not get user config dir for FileLoader: %v", err)
 	}
+	// Pastikan path ini sinkron dengan yang ada di app.go
 	vaultPath := filepath.Join(userConfigDir, "GalleryVault", "vault")
 	return &FileLoader{
 		vaultPath: vaultPath,
@@ -37,12 +39,14 @@ func NewFileLoader() *FileLoader {
 
 // ServeHTTP handles the request to serve a file with on-the-fly decryption
 func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Disable caching to prevent stale encrypted images
+	// 1. PRIVASI TOTAL: Header Anti-Cache yang Ketat
+	// Mencegah browser menyimpan salinan gambar yang sudah didekripsi
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
 	w.Header().Set("ETag", "")
 
+	// 2. Decode URL Path
 	path, err := url.PathUnescape(r.URL.Path)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
@@ -50,18 +54,17 @@ func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Path will be like "/img/BookName/image.jpg"
-	// Extract to "VAULT_PATH/BookName/image.jpg"
+	// 3. Validasi Path (/img/...)
 	relativePath := strings.TrimPrefix(path, "/img/")
 	if relativePath == path {
-		// Path didn't start with /img/
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 
 	filePath := filepath.Join(f.vaultPath, relativePath)
 
-	// Security: ensure path is within vault
+	// 4. Keamanan Path Traversal
+	// Pastikan request tidak keluar dari folder vault
 	absVaultPath, _ := filepath.Abs(f.vaultPath)
 	absFilePath, _ := filepath.Abs(filePath)
 	if !strings.HasPrefix(absFilePath, absVaultPath) {
@@ -69,14 +72,14 @@ func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate file exists
-	stat, err := os.Stat(filePath)
-	if os.IsNotExist(err) || stat.IsDir() {
+	// 5. Cek Keberadaan File
+	_, err = os.Stat(filePath)
+	if os.IsNotExist(err) {
 		http.NotFound(w, r)
 		return
 	}
 
-	// Read file (could be encrypted or plain)
+	// 6. Baca File dari Disk
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -84,12 +87,14 @@ func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try to decrypt, or use as-is if it's plain unencrypted
+	// 7. DEKRIPSI (PENTING)
+	// Memanggil fungsi TryDecryptData yang ada di app.go (paket main yang sama)
 	decryptedData := TryDecryptData(fileData)
 
-	// Serve decrypted data
+	// 8. Sajikan Gambar
+	// Menggunakan time.Now() agar browser tidak melakukan caching berbasis waktu modifikasi
 	w.Header().Set("Content-Type", "image/jpeg")
-	http.ServeContent(w, r, filepath.Base(filePath), stat.ModTime(), bytes.NewReader(decryptedData))
+	http.ServeContent(w, r, filepath.Base(filePath), time.Now(), bytes.NewReader(decryptedData))
 }
 
 func main() {
@@ -102,7 +107,7 @@ func main() {
 		Height: 800,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
-			Handler: fileLoader,
+			Handler: fileLoader, // Menggunakan handler kustom kita
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,

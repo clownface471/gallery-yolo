@@ -27,13 +27,17 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-// EncryptionKey must be 32 bytes for AES-256
-var EncryptionKey = [32]byte{
-	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
-}
+// --- KONFIGURASI KEAMANAN & KOMPRESI ---
+
+// Kunci Enkripsi (32 bytes untuk AES-256).
+// Menggunakan string agar lebih mudah dikelola daripada byte array manual.
+var EncryptionKey = []byte("GalleryVault_SecureKey_2026_IDN!")
+
+const (
+	maxWidth    = 1920 // Resize gambar super besar ke 1080p-ish
+	jpegQuality = 75   // Kualitas 75% (Hemat storage signifikan, visual tetap tajam)
+	coverWidth  = 300
+)
 
 // Config struct to hold application configuration
 type Config struct {
@@ -53,11 +57,6 @@ type App struct {
 	configPath string
 	vaultDir   string
 }
-
-const (
-	maxWidth   = 1920
-	coverWidth = 300
-)
 
 // NewApp creates a new App application struct
 func NewApp() *App {
@@ -99,7 +98,7 @@ func (a *App) startup(ctx context.Context) {
 
 // EncryptData encrypts data using AES-256-GCM
 func EncryptData(plaintext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(EncryptionKey[:])
+	block, err := aes.NewCipher(EncryptionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +118,7 @@ func EncryptData(plaintext []byte) ([]byte, error) {
 
 // DecryptData decrypts data using AES-256-GCM
 func DecryptData(ciphertext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(EncryptionKey[:])
+	block, err := aes.NewCipher(EncryptionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -280,9 +279,9 @@ func (a *App) CreateBook(bookName string, sourcePath string, syncMode bool) stri
 					}
 				}
 
-				// Encode to JPEG buffer
+				// Encode to JPEG buffer with Quality 75 (Compression)
 				var buf bytes.Buffer
-				err = imaging.Encode(&buf, srcImage, imaging.JPEG)
+				err = imaging.Encode(&buf, srcImage, imaging.JPEG, imaging.JPEGQuality(jpegQuality))
 				if err != nil {
 					log.Printf("Gagal encode gambar %s: %v", destPath, err)
 					return nil
@@ -341,18 +340,18 @@ func (a *App) GetBooks() []Book {
 			coverBase64 := ""
 			coverFilename := ""
 
-			// 1. Check for .cover file
-			coverFilePath := filepath.Join(bookPath, ".cover")
+			// 1. Check for cover.db file
+			coverFilePath := filepath.Join(bookPath, "cover.db")
 			if content, err := os.ReadFile(coverFilePath); err == nil && len(content) > 0 {
 				coverFilename = strings.TrimSpace(string(content))
 			}
 
-			// 2. If no .cover file, find the first image naturally
+			// 2. If no cover.db file, find the first image naturally
 			if coverFilename == "" {
 				images, _ := os.ReadDir(bookPath)
 				var imageNames []string
 				for _, img := range images {
-					if !img.IsDir() && img.Name() != ".cover" {
+					if !img.IsDir() && img.Name() != "cover.db" {
 						ext := strings.ToLower(filepath.Ext(img.Name()))
 						if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" {
 							imageNames = append(imageNames, img.Name())
@@ -380,7 +379,8 @@ func (a *App) GetBooks() []Book {
 						if err == nil {
 							thumbnail := imaging.Resize(img, coverWidth, 0, imaging.Lanczos)
 							var buf bytes.Buffer
-							err := imaging.Encode(&buf, thumbnail, imaging.JPEG)
+							// Use consistent compression for thumbnails too
+							err := imaging.Encode(&buf, thumbnail, imaging.JPEG, imaging.JPEGQuality(jpegQuality))
 							if err == nil {
 								coverBase64 = "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
 							} else {
@@ -417,7 +417,7 @@ func (a *App) GetImagesInBook(bookName string) []string {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() && entry.Name() != ".cover" {
+		if !entry.IsDir() && entry.Name() != "cover.db" {
 			ext := strings.ToLower(filepath.Ext(entry.Name()))
 			if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" {
 				filenames = append(filenames, entry.Name())
@@ -456,7 +456,7 @@ func (a *App) RenameBook(oldName, newName string) error {
 func (a *App) SetBookCover(bookName, imageFilename string) error {
 	sanitizedBookName := SanitizeName(bookName)
 	bookPath := filepath.Join(a.vaultDir, sanitizedBookName)
-	coverFilePath := filepath.Join(bookPath, ".cover")
+	coverFilePath := filepath.Join(bookPath, "cover.db")
 
 	imagePath := filepath.Join(bookPath, imageFilename)
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
