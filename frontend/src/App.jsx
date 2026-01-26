@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     CreateBook, GetBooks, GetChapters, GetImagesInChapter, SelectFolder, HasPassword,
     SetMasterPassword, VerifyPassword, DeleteBook, UpdateBookMetadata, SetBookCover,
     LockBook, UnlockBook, VerifyBookPassword, ToggleHiddenZone, IsHiddenZoneActive, LockHiddenZone,
     HasHiddenZonePassword, SetHiddenZonePassword
 } from '../wailsjs/go/main/App';
+import { OnFileDrop } from '../wailsjs/runtime/runtime';
 import './App.css';
 import Reader from './components/Reader';
 
-// --- ICONS ---
+// --- ICONS (SAMA SEPERTI SEBELUMNYA) ---
 const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const HomeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>;
 const LockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
@@ -25,7 +26,6 @@ const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" he
 const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
 const CrossIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
-// --- COMPONENTS ---
 const BookHero = ({ book }) => {
     if (!book) return null;
     return (
@@ -66,6 +66,8 @@ function App() {
     const [imageCacheBuster, setImageCacheBuster] = useState(Date.now());
     const [hiddenZoneActive, setHiddenZoneActive] = useState(false);
 
+    const authRef = useRef(false);
+
     // Edit Modal State
     const [editingBook, setEditingBook] = useState(null);
     const [editNameInput, setEditNameInput] = useState('');
@@ -78,7 +80,71 @@ function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [settingsPassInput, setSettingsPassInput] = useState('');
 
+    useEffect(() => { authRef.current = isAuthenticated; }, [isAuthenticated]);
     useEffect(() => { const check = async () => setHasPasswordSetup(await HasPassword()); check(); }, []);
+
+    // --- DRAG & DROP LISTENER (UPDATED) ---
+    useEffect(() => {
+        OnFileDrop((x, y, paths) => {
+            if (!authRef.current) return;
+            if (paths && paths.length > 0) {
+                handleDragImport(paths);
+            }
+        });
+    }, []); 
+
+    const handleDragImport = async (paths) => {
+        // [NEW] LOGIC BULK IMPORT
+        if (paths.length > 1) {
+            // Jika user drop BANYAK folder sekaligus
+            if (!confirm(`Terdeteksi ${paths.length} folder/file. Import semuanya sebagai buku terpisah?`)) return;
+
+            setIsLoading(true);
+            let successCount = 0;
+
+            for (let i = 0; i < paths.length; i++) {
+                const path = paths[i];
+                // Ambil nama folder dari path (Windows/Unix safe)
+                const name = path.split(/[\\/]/).pop();
+                
+                setStatusMessage(`Importing (${i+1}/${paths.length}): ${name}...`);
+                
+                try {
+                    // Auto-create tanpa prompt nama
+                    await CreateBook(name, path, false); 
+                    successCount++;
+                } catch (e) {
+                    console.error(`Gagal import ${name}:`, e);
+                }
+            }
+
+            setStatusMessage(`Selesai! ${successCount} buku berhasil diimpor.`);
+            setTimeout(() => setStatusMessage(''), 3000);
+            await fetchBooks();
+            setIsLoading(false);
+
+        } else {
+            // [EXISTING] LOGIC SINGLE FOLDER (Pakai Prompt)
+            const path = paths[0];
+            const name = path.split(/[\\/]/).pop();
+
+            const confirmedName = prompt(`Import folder ini sebagai buku?\n\nPath: ${path}`, name);
+            if (!confirmedName) return;
+
+            setIsLoading(true);
+            setStatusMessage(`Importing ${confirmedName}...`);
+            
+            try {
+                const res = await CreateBook(confirmedName, path, false);
+                setStatusMessage(res);
+                setTimeout(() => setStatusMessage(''), 3000);
+                await fetchBooks();
+            } catch (e) {
+                alert("Import Gagal: " + e);
+            }
+            setIsLoading(false);
+        }
+    };
 
     const fetchBooks = useCallback(async () => {
         if (!isAuthenticated) return;
@@ -163,11 +229,7 @@ function App() {
 
     const handleOpenChapter = async (bookName, chapterName) => {
         setIsLoading(true); setCurrentChapter(chapterName);
-        try { 
-            // FIX: GetImagesInBook sudah dihapus di backend, pakai GetImagesInChapter
-            const imgs = await GetImagesInChapter(bookName, chapterName); 
-            setImageFilenames(imgs || []); setView('gallery'); 
-        } 
+        try { const imgs = await GetImagesInChapter(bookName, chapterName); setImageFilenames(imgs || []); setView('gallery'); } 
         catch (e) { alert(e); } setIsLoading(false);
     };
 
@@ -199,7 +261,6 @@ function App() {
         e.preventDefault(); if(!editingBook) return; setIsLoading(true);
         try {
             const tagsArray = editTagsInput.split(',').map(t => t.trim()).filter(t => t !== "");
-            // FIX: Panggil UpdateBookMetadata (Rename otomatis dihandle di backend)
             await UpdateBookMetadata(editingBook.name, editNameInput, editDescInput, tagsArray, editIsHidden, editMaskCover);
             if (editLockPass) { await LockBook(editNameInput, editLockPass); }
             setEditingBook(null); await fetchBooks();
@@ -364,6 +425,7 @@ function App() {
 
     // --- MAIN RENDER ---
     if (hasPasswordSetup === null) return <div className="loading-overlay">Loading...</div>;
+    
     if (!isAuthenticated) return (
         <div className="login-container">
             <div className="login-box">
@@ -377,8 +439,19 @@ function App() {
         </div>
     );
 
-    return (
-        <div id="App">
+      return (
+            <div id="App" 
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Memberi sinyal visual ke Windows bahwa area ini bisa menerima file
+                    e.dataTransfer.dropEffect = "copy"; 
+                }}
+                onDrop={(e) => {
+                    e.preventDefault(); // Mencegah browser membuka gambar di tab baru
+                    e.stopPropagation();
+                }}
+            >
             {isLoading && <div className="loading-overlay"><div></div><p>{statusMessage || 'Processing...'}</p></div>}
             {renderSidebar()}
             <div className="main-content">
