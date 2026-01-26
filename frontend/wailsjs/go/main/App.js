@@ -18,12 +18,24 @@ export function GetBooks() {
   return window['go']['main']['App']['GetBooks']();
 }
 
+export function GetChapters(arg1) {
+  return window['go']['main']['App']['GetChapters'](arg1);
+}
+
 export function GetImagesInBook(arg1) {
   return window['go']['main']['App']['GetImagesInBook'](arg1);
 }
 
+export function GetImagesInChapter(arg1, arg2) {
+  return window['go']['main']['App']['GetImagesInChapter'](arg1, arg2);
+}
+
 export function HasPassword() {
   return window['go']['main']['App']['HasPassword']();
+}
+
+export function LockBook(arg1, arg2) {
+  return window['go']['main']['App']['LockBook'](arg1, arg2);
 }
 
 export function RenameBook(arg1, arg2) {
@@ -38,8 +50,20 @@ export function SetBookCover(arg1, arg2) {
   return window['go']['main']['App']['SetBookCover'](arg1, arg2);
 }
 
+export function SetBookTags(arg1, arg2) {
+  return window['go']['main']['App']['SetBookTags'](arg1, arg2);
+}
+
 export function SetMasterPassword(arg1) {
   return window['go']['main']['App']['SetMasterPassword'](arg1);
+}
+
+export function UnlockBook(arg1) {
+  return window['go']['main']['App']['UnlockBook'](arg1);
+}
+
+export function VerifyBookPassword(arg1, arg2) {
+  return window['go']['main']['App']['VerifyBookPassword'](arg1, arg2);
 }
 
 export function VerifyPassword(arg1) {

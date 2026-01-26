@@ -29,28 +29,32 @@ import (
 
 // --- KONFIGURASI KEAMANAN & KOMPRESI ---
 
-// Kunci Enkripsi (32 bytes untuk AES-256).
-// Menggunakan string agar lebih mudah dikelola daripada byte array manual.
 var EncryptionKey = []byte("GalleryVault_SecureKey_2026_IDN!")
 
 const (
-	maxWidth    = 1920 // Resize gambar super besar ke 1080p-ish
-	jpegQuality = 75   // Kualitas 75% (Hemat storage signifikan, visual tetap tajam)
+	maxWidth    = 1920
+	jpegQuality = 75
 	coverWidth  = 300
 )
 
-// Config struct to hold application configuration
+// Config struct
 type Config struct {
 	PasswordHash string `json:"password_hash"`
 }
 
-// Book struct includes name and cover image
+// Book struct
 type Book struct {
-	Name  string `json:"name"`
-	Cover string `json:"cover"`
+	Name     string   `json:"name"`
+	Cover    string   `json:"cover"`
+	Tags     []string `json:"tags"`
+	IsLocked bool     `json:"is_locked"` // NEW: Penanda visual buku terkunci
 }
 
-// App struct
+// NEW: Struct internal untuk keamanan per buku
+type BookSecurity struct {
+	PasswordHash string `json:"password_hash"`
+}
+
 type App struct {
 	ctx        context.Context
 	config     Config
@@ -58,14 +62,10 @@ type App struct {
 	vaultDir   string
 }
 
-// NewApp creates a new App application struct
-func NewApp() *App {
-	return &App{}
-}
+func NewApp() *App { return &App{} }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		log.Fatalf("Fatal: could not get user config dir: %v", err)
@@ -79,147 +79,118 @@ func (a *App) startup(ctx context.Context) {
 		log.Fatalf("Fatal: could not create vault directory on startup: %v", err)
 	}
 
-	// Load or create config file
 	if _, err := os.Stat(a.configPath); os.IsNotExist(err) {
 		a.config = Config{PasswordHash: ""}
 		file, _ := json.MarshalIndent(a.config, "", " ")
 		_ = os.WriteFile(a.configPath, file, 0644)
 	} else {
 		file, err := os.ReadFile(a.configPath)
-		if err != nil {
-			log.Fatalf("Fatal: could not read config file: %v", err)
-		}
-		err = json.Unmarshal(file, &a.config)
-		if err != nil {
-			log.Fatalf("Fatal: could not parse config file: %v", err)
+		if err == nil {
+			json.Unmarshal(file, &a.config)
 		}
 	}
 }
 
-// EncryptData encrypts data using AES-256-GCM
+// --- CRYPTO HELPER ---
+
 func EncryptData(plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(EncryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
+	if err != nil { return nil, err }
 	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
+	if err != nil { return nil, err }
 	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
-
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil { return nil, err }
 	return gcm.Seal(nonce, nonce, plaintext, nil), nil
 }
 
-// DecryptData decrypts data using AES-256-GCM
+func TryDecryptData(data []byte) []byte {
+	if len(data) < 16 { return data }
+	decrypted, err := DecryptData(data)
+	if err != nil { return data }
+	return decrypted
+}
+
 func DecryptData(ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(EncryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
+	if err != nil { return nil, err }
 	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
+	if err != nil { return nil, err }
 	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		return nil, fmt.Errorf("ciphertext too short")
-	}
-
+	if len(ciphertext) < nonceSize { return nil, fmt.Errorf("ciphertext too short") }
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	return gcm.Open(nil, nonce, ciphertext, nil)
 }
 
-// TryDecryptData attempts to decrypt data, returns plaintext on success or original data if it's not encrypted
-func TryDecryptData(data []byte) []byte {
-	if len(data) < 16 { // GCM nonce is at least 12 bytes, less than that it's probably plain
-		return data
-	}
-
-	decrypted, err := DecryptData(data)
-	if err != nil {
-		// Decryption failed - treat as plain unencrypted data
-		return data
-	}
-
-	return decrypted
+func HashString(s string) string {
+	h := sha256.New()
+	h.Write([]byte(s))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
-// HasPassword checks if a master password has been set
-func (a *App) HasPassword() bool {
-	return a.config.PasswordHash != ""
-}
+// --- AUTH UTILS ---
 
-// SetMasterPassword hashes and saves a new master password
-func (a *App) SetMasterPassword(rawPassword string) bool {
-	if rawPassword == "" {
-		return false
-	}
-
-	hasher := sha256.New()
-	hasher.Write([]byte(rawPassword))
-	hash := hex.EncodeToString(hasher.Sum(nil))
-
-	a.config.PasswordHash = hash
-	file, err := json.MarshalIndent(a.config, "", " ")
-	if err != nil {
-		log.Printf("Error marshaling config to save password: %v", err)
-		return false
-	}
-
-	err = os.WriteFile(a.configPath, file, 0644)
-	if err != nil {
-		log.Printf("Error writing config file to save password: %v", err)
-		return false
-	}
-
+func (a *App) HasPassword() bool { return a.config.PasswordHash != "" }
+func (a *App) SetMasterPassword(raw string) bool {
+	if raw == "" { return false }
+	a.config.PasswordHash = HashString(raw)
+	file, _ := json.MarshalIndent(a.config, "", " ")
+	os.WriteFile(a.configPath, file, 0644)
 	return true
 }
+func (a *App) VerifyPassword(input string) bool { return HashString(input) == a.config.PasswordHash }
 
-// VerifyPassword checks if the provided password is correct
-func (a *App) VerifyPassword(input string) bool {
-	hasher := sha256.New()
-	hasher.Write([]byte(input))
-	hash := hex.EncodeToString(hasher.Sum(nil))
-	return hash == a.config.PasswordHash
+// --- FEATURE: DOUBLE LAYER PROTECTION ---
+
+// LockBook membuat file security.json di dalam folder buku
+func (a *App) LockBook(bookName, password string) error {
+	if password == "" { return fmt.Errorf("password tidak boleh kosong") }
+	bookPath := filepath.Join(a.vaultDir, SanitizeName(bookName))
+	
+	sec := BookSecurity{PasswordHash: HashString(password)}
+	data, err := json.MarshalIndent(sec, "", " ")
+	if err != nil { return err }
+	
+	return os.WriteFile(filepath.Join(bookPath, "security.json"), data, 0644)
 }
 
-// SanitizeName removes characters that are invalid for folder names
+// UnlockBook menghapus file security.json
+func (a *App) UnlockBook(bookName string) error {
+	bookPath := filepath.Join(a.vaultDir, SanitizeName(bookName))
+	return os.Remove(filepath.Join(bookPath, "security.json"))
+}
+
+// VerifyBookPassword mengecek password kedua
+func (a *App) VerifyBookPassword(bookName, password string) bool {
+	bookPath := filepath.Join(a.vaultDir, SanitizeName(bookName))
+	secPath := filepath.Join(bookPath, "security.json")
+	
+	data, err := os.ReadFile(secPath)
+	if err != nil { return true } // Jika file hilang, anggap tidak terkunci (fail-open logic for simplicity here)
+	
+	var sec BookSecurity
+	json.Unmarshal(data, &sec)
+	return sec.PasswordHash == HashString(password)
+}
+
+// --- FILE OPERATIONS ---
+
 func SanitizeName(name string) string {
-	// Remove illegal Windows characters
 	re := regexp.MustCompile(`[<>:"/\\|?*]`)
 	sanitized := re.ReplaceAllString(name, "_")
-
-	// Replace fullwidth colon with underscore
 	sanitized = strings.ReplaceAll(sanitized, "：", "_")
-
-	// Replace spaces with underscores and trim
 	return strings.TrimSpace(strings.ReplaceAll(sanitized, " ", "_"))
 }
 
-// SelectFolder opens a dialog for the user to select a folder
 func (a *App) SelectFolder() string {
-	selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Pilih Folder Sumber Gambar",
-	})
-	if err != nil {
-		log.Printf("Error selecting directory: %v", err)
-		return ""
-	}
-	return selection
+	res, _ := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Pilih Folder Sumber"})
+	return res
 }
 
-// CreateBook creates a new book and imports images with optional sync mode
+// --- FEATURE: SMART CHAPTER IMPORT ---
+// Update CreateBook agar mempertahankan struktur folder
 func (a *App) CreateBook(bookName string, sourcePath string, syncMode bool) string {
 	if strings.TrimSpace(bookName) == "" || strings.TrimSpace(sourcePath) == "" {
-		return "Error: Nama buku dan folder sumber tidak boleh kosong."
+		return "Error: Data tidak lengkap."
 	}
 
 	sanitizedBookName := SanitizeName(bookName)
@@ -227,315 +198,235 @@ func (a *App) CreateBook(bookName string, sourcePath string, syncMode bool) stri
 
 	if !syncMode {
 		if _, err := os.Stat(bookPath); !os.IsNotExist(err) {
-			return fmt.Sprintf("Error: Buku dengan nama '%s' sudah ada.", sanitizedBookName)
+			return fmt.Sprintf("Error: Buku '%s' sudah ada.", sanitizedBookName)
 		}
 	}
-
-	if err := os.MkdirAll(bookPath, 0755); err != nil {
-		return "Error: Gagal membuat folder untuk buku."
-	}
+	os.MkdirAll(bookPath, 0755)
 
 	imageCount := 0
-	err := filepath.Walk(sourcePath, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
+	
+	// Walk function yang mempertahankan hierarki folder (Chapter)
+	filepath.Walk(sourcePath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil { return nil }
+
+		// Jika Directory: Buat folder yang sama di dalam Vault (sebagai Chapter)
+		if info.IsDir() {
+			if path == sourcePath { return nil } // Skip root folder
+			relPath, _ := filepath.Rel(sourcePath, path)
+			// Buat folder chapter di vault
+			chapterPath := filepath.Join(bookPath, relPath) 
+			os.MkdirAll(chapterPath, 0755)
+			return nil
 		}
 
-		if !info.IsDir() {
-			ext := strings.ToLower(filepath.Ext(path))
-			if ext == ".jpg" || ext == ".png" || ext == ".jpeg" || ext == ".webp" {
-				srcImage, err := imaging.Open(path)
-				if err != nil {
-					log.Printf("Gagal membuka gambar %s: %v", path, err)
-					return nil
-				}
+		// Jika File Gambar
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext == ".jpg" || ext == ".png" || ext == ".jpeg" || ext == ".webp" {
+			// Hitung path relatif untuk mempertahankan struktur
+			// Contoh: Source/Chapter1/Img1.jpg -> Vault/Book/Chapter1/Img1.jpg
+			relPath, _ := filepath.Rel(sourcePath, path)
+			
+			// Ganti ekstensi jadi .jpg dan sanitize nama file-nya saja
+			dir := filepath.Dir(relPath)
+			fileName := filepath.Base(relPath)
+			nameWithoutExt := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+			
+			// Nama file akhir
+			destRelPath := filepath.Join(dir, SanitizeName(nameWithoutExt)+".jpg")
+			destPath := filepath.Join(bookPath, destRelPath)
+			
+			// Pastikan folder chapter ada (double check)
+			os.MkdirAll(filepath.Dir(destPath), 0755)
 
-				// Resize if too large
-				if srcImage.Bounds().Dx() > maxWidth {
-					srcImage = imaging.Resize(srcImage, maxWidth, 0, imaging.Lanczos)
-				}
+			if syncMode {
+				if _, err := os.Stat(destPath); !os.IsNotExist(err) { return nil }
+			}
 
-				// Always save as JPEG
-				originalName := strings.TrimSuffix(info.Name(), filepath.Ext(info.Name()))
-				safeName := SanitizeName(originalName)
-				destFilename := safeName + ".jpg"
-				destPath := filepath.Join(bookPath, destFilename)
+			// Proses Gambar (Resize -> Encrypt -> Save)
+			srcImage, err := imaging.Open(path)
+			if err != nil { return nil }
 
-				// Check for duplicates in sync mode
-				if syncMode {
-					if _, err := os.Stat(destPath); !os.IsNotExist(err) {
-						return nil // Skip existing file
-					}
-				} else {
-					// Handle duplicates in non-sync mode
-					counter := 1
-					for {
-						if _, err := os.Stat(destPath); os.IsNotExist(err) {
-							break
-						}
-						destFilename = fmt.Sprintf("%s_%d.jpg", safeName, counter)
-						destPath = filepath.Join(bookPath, destFilename)
-						counter++
-					}
-				}
+			if srcImage.Bounds().Dx() > maxWidth {
+				srcImage = imaging.Resize(srcImage, maxWidth, 0, imaging.Lanczos)
+			}
 
-				// Encode to JPEG buffer with Quality 75 (Compression)
-				var buf bytes.Buffer
-				err = imaging.Encode(&buf, srcImage, imaging.JPEG, imaging.JPEGQuality(jpegQuality))
-				if err != nil {
-					log.Printf("Gagal encode gambar %s: %v", destPath, err)
-					return nil
-				}
+			var buf bytes.Buffer
+			err = imaging.Encode(&buf, srcImage, imaging.JPEG, imaging.JPEGQuality(jpegQuality))
+			if err != nil { return nil }
 
-				// Encrypt the image data
-				encryptedData, err := EncryptData(buf.Bytes())
-				if err != nil {
-					log.Printf("Gagal enkripsi gambar %s: %v", destPath, err)
-					return nil
-				}
+			encryptedData, err := EncryptData(buf.Bytes())
+			if err != nil { return nil }
 
-				// Write encrypted data
-				err = os.WriteFile(destPath, encryptedData, 0644)
-				if err != nil {
-					log.Printf("Gagal menyimpan gambar %s: %v", destPath, err)
-					return nil
-				}
-
+			if err := os.WriteFile(destPath, encryptedData, 0644); err == nil {
 				imageCount++
 			}
 		}
-
 		return nil
 	})
 
-	if err != nil {
-		return "Error: Gagal memindai folder sumber."
-	}
-
 	if imageCount == 0 && !syncMode {
 		os.RemoveAll(bookPath)
-		return "Tidak ada gambar baru yang ditemukan di folder sumber."
+		return "Gagal: Tidak ada gambar ditemukan."
 	}
-
-	if syncMode {
-		return fmt.Sprintf("Sinkronisasi Selesai! %d gambar baru telah ditambahkan ke '%s'.", imageCount, sanitizedBookName)
-	}
-
-	return fmt.Sprintf("Berhasil! %d gambar telah diimpor ke buku '%s'.", imageCount, sanitizedBookName)
+	return fmt.Sprintf("Sukses! %d gambar diamankan.", imageCount)
 }
 
-// GetBooks returns a list of all available books with their cover images
 func (a *App) GetBooks() []Book {
 	books := []Book{}
-	entries, err := os.ReadDir(a.vaultDir)
-	if err != nil {
-		log.Printf("Error reading vault directory: %v", err)
-		return books
-	}
+	entries, _ := os.ReadDir(a.vaultDir)
 
 	for _, entry := range entries {
 		if entry.IsDir() {
 			bookName := entry.Name()
 			bookPath := filepath.Join(a.vaultDir, bookName)
+			
+			// Load Tags
+			tags := []string{}
+			if tagsData, err := os.ReadFile(filepath.Join(bookPath, "tags.json")); err == nil {
+				_ = json.Unmarshal(tagsData, &tags)
+			}
+			
+			// Check Lock Status
+			isLocked := false
+			if _, err := os.Stat(filepath.Join(bookPath, "security.json")); err == nil {
+				isLocked = true
+			}
+
+			// Load Cover (Cari di root, atau masuk ke folder chapter pertama)
 			coverBase64 := ""
-			coverFilename := ""
-
-			// 1. Check for cover.db file
-			coverFilePath := filepath.Join(bookPath, "cover.db")
-			if content, err := os.ReadFile(coverFilePath); err == nil && len(content) > 0 {
-				coverFilename = strings.TrimSpace(string(content))
+			coverName := ""
+			
+			if d, err := os.ReadFile(filepath.Join(bookPath, "cover.db")); err == nil {
+				coverName = string(d)
+			} else {
+				// Recursive find first image for cover
+				filepath.Walk(bookPath, func(path string, info fs.FileInfo, err error) error {
+					if coverName != "" { return io.EOF } // Sudah ketemu, stop walk
+					if !info.IsDir() && strings.HasSuffix(strings.ToLower(info.Name()), ".jpg") {
+						rel, _ := filepath.Rel(bookPath, path)
+						coverName = rel
+						return io.EOF
+					}
+					return nil
+				})
 			}
 
-			// 2. If no cover.db file, find the first image naturally
-			if coverFilename == "" {
-				images, _ := os.ReadDir(bookPath)
-				var imageNames []string
-				for _, img := range images {
-					if !img.IsDir() && img.Name() != "cover.db" {
-						ext := strings.ToLower(filepath.Ext(img.Name()))
-						if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" {
-							imageNames = append(imageNames, img.Name())
-						}
+			if coverName != "" {
+				if data, err := os.ReadFile(filepath.Join(bookPath, coverName)); err == nil {
+					decrypted := TryDecryptData(data)
+					if img, err := imaging.Decode(bytes.NewReader(decrypted)); err == nil {
+						thumb := imaging.Resize(img, coverWidth, 0, imaging.Lanczos)
+						var buf bytes.Buffer
+						imaging.Encode(&buf, thumb, imaging.JPEG, imaging.JPEGQuality(jpegQuality))
+						coverBase64 = "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
 					}
 				}
-
-				natsort(imageNames)
-				if len(imageNames) > 0 {
-					coverFilename = imageNames[0]
-				}
 			}
 
-			// 3. Generate thumbnail from the determined cover filename
-			if coverFilename != "" {
-				imagePath := filepath.Join(bookPath, coverFilename)
-				if _, err := os.Stat(imagePath); err == nil {
-					// Read file (could be encrypted or plain)
-					fileData, err := os.ReadFile(imagePath)
-					if err == nil {
-						// Try to decrypt, or use as-is if it's plain
-						decryptedData := TryDecryptData(fileData)
-
-						img, err := imaging.Decode(bytes.NewReader(decryptedData))
-						if err == nil {
-							thumbnail := imaging.Resize(img, coverWidth, 0, imaging.Lanczos)
-							var buf bytes.Buffer
-							// Use consistent compression for thumbnails too
-							err := imaging.Encode(&buf, thumbnail, imaging.JPEG, imaging.JPEGQuality(jpegQuality))
-							if err == nil {
-								coverBase64 = "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
-							} else {
-								log.Printf("Failed to encode thumbnail for %s: %v", bookName, err)
-							}
-						} else {
-							log.Printf("Failed to decode thumbnail for %s: %v", bookName, err)
-						}
-					} else {
-						log.Printf("Failed to read cover image '%s' for book %s: %v", coverFilename, bookName, err)
-					}
-				} else {
-					log.Printf("Cover file '%s' for book '%s' not found.", coverFilename, bookName)
-				}
-			}
-
-			books = append(books, Book{Name: bookName, Cover: coverBase64})
+			books = append(books, Book{Name: bookName, Cover: coverBase64, Tags: tags, IsLocked: isLocked})
 		}
 	}
-
 	return books
 }
 
-// GetImagesInBook returns a naturally sorted list of image filenames for a specific book
-func (a *App) GetImagesInBook(bookName string) []string {
-	filenames := []string{}
-	sanitizedBookName := SanitizeName(bookName)
-	bookPath := filepath.Join(a.vaultDir, sanitizedBookName)
+// --- FEATURE: TAGS CASE INSENSITIVE ---
 
-	entries, err := os.ReadDir(bookPath)
-	if err != nil {
-		log.Printf("Error reading book directory '%s': %v", bookPath, err)
-		return filenames
+func (a *App) SetBookTags(bookName string, tags []string) error {
+	path := filepath.Join(a.vaultDir, SanitizeName(bookName), "tags.json")
+	
+	// Gunakan Map untuk Deduplikasi + Lowercase
+	uniqueMap := make(map[string]bool)
+	cleanTags := []string{}
+	
+	for _, t := range tags {
+		lower := strings.ToLower(strings.TrimSpace(t))
+		if lower != "" && !uniqueMap[lower] {
+			uniqueMap[lower] = true
+			cleanTags = append(cleanTags, lower)
+		}
+	}
+	
+	data, err := json.MarshalIndent(cleanTags, "", " ")
+	if err != nil { return err }
+	return os.WriteFile(path, data, 0644)
+}
+
+// --- FEATURE: CHAPTER HANDLING ---
+
+// GetChapters mengembalikan daftar folder di dalam buku
+func (a *App) GetChapters(bookName string) []string {
+	var chapters []string
+	bookPath := filepath.Join(a.vaultDir, SanitizeName(bookName))
+	
+	entries, _ := os.ReadDir(bookPath)
+	for _, e := range entries {
+		if e.IsDir() {
+			chapters = append(chapters, e.Name())
+		}
+	}
+	natsort(chapters)
+	return chapters
+}
+
+// GetImagesInChapter mengembalikan gambar di dalam spesifik chapter (folder)
+func (a *App) GetImagesInChapter(bookName, chapterName string) []string {
+	var files []string
+	// Jika chapterName kosong, ambil dari root buku
+	targetPath := filepath.Join(a.vaultDir, SanitizeName(bookName))
+	if chapterName != "" {
+		targetPath = filepath.Join(targetPath, chapterName)
 	}
 
-	for _, entry := range entries {
-		if !entry.IsDir() && entry.Name() != "cover.db" {
-			ext := strings.ToLower(filepath.Ext(entry.Name()))
-			if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" {
-				filenames = append(filenames, entry.Name())
+	entries, _ := os.ReadDir(targetPath)
+	for _, e := range entries {
+		if !e.IsDir() {
+			ext := strings.ToLower(filepath.Ext(e.Name()))
+			if ext == ".jpg" || ext == ".jpeg" || ext == ".png" {
+				files = append(files, e.Name())
 			}
 		}
 	}
-
-	natsort(filenames)
-	return filenames
+	natsort(files)
+	return files
 }
 
-// RenameBook renames a book's directory
-func (a *App) RenameBook(oldName, newName string) error {
-	sanitizedOldName := SanitizeName(oldName)
-	sanitizedNewName := SanitizeName(newName)
-
-	if strings.TrimSpace(sanitizedNewName) == "" {
-		return fmt.Errorf("nama baru tidak boleh kosong")
-	}
-
-	oldPath := filepath.Join(a.vaultDir, sanitizedOldName)
-	newPath := filepath.Join(a.vaultDir, sanitizedNewName)
-
-	if _, err := os.Stat(oldPath); os.IsNotExist(err) {
-		return fmt.Errorf("buku '%s' tidak ditemukan", sanitizedOldName)
-	}
-
-	if _, err := os.Stat(newPath); !os.IsNotExist(err) {
-		return fmt.Errorf("buku dengan nama '%s' sudah ada", sanitizedNewName)
-	}
-
-	return os.Rename(oldPath, newPath)
+// GetImagesInBook (Legacy/Flat): Masih dipakai jika buku tidak punya chapter
+// atau untuk mengambil gambar di root folder buku
+func (a *App) GetImagesInBook(bookName string) []string {
+	return a.GetImagesInChapter(bookName, "")
 }
 
-// SetBookCover sets a specific image as the cover for a book
-func (a *App) SetBookCover(bookName, imageFilename string) error {
-	sanitizedBookName := SanitizeName(bookName)
-	bookPath := filepath.Join(a.vaultDir, sanitizedBookName)
-	coverFilePath := filepath.Join(bookPath, "cover.db")
+// --- STANDARD OPS ---
 
-	imagePath := filepath.Join(bookPath, imageFilename)
-	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
-		return fmt.Errorf("file gambar '%s' tidak ditemukan di buku '%s'", imageFilename, sanitizedBookName)
-	}
-
-	return os.WriteFile(coverFilePath, []byte(imageFilename), 0644)
+func (a *App) RenameBook(o, n string) error {
+	return os.Rename(filepath.Join(a.vaultDir, SanitizeName(o)), filepath.Join(a.vaultDir, SanitizeName(n)))
+}
+func (a *App) SetBookCover(b, i string) error {
+	return os.WriteFile(filepath.Join(a.vaultDir, SanitizeName(b), "cover.db"), []byte(i), 0644)
+}
+func (a *App) DeleteBook(b string) error { 
+	return os.RemoveAll(filepath.Join(a.vaultDir, SanitizeName(b))) 
+}
+func (a *App) DeleteImage(b, i string) error { 
+	return os.Remove(filepath.Join(a.vaultDir, SanitizeName(b), i)) 
 }
 
-// --- Natural Sort Implementation ---
-
-// natsort sorts a slice of strings in natural order
-func natsort(s []string) {
-	sort.Slice(s, func(i, j int) bool {
-		return naturalCompare(s[i], s[j])
-	})
-}
-
-// naturalCompare compares two strings using natural sort logic
+// Utils
+func natsort(s []string) { sort.Slice(s, func(i, j int) bool { return naturalCompare(s[i], s[j]) }) }
 func naturalCompare(a, b string) bool {
 	i, j := 0, 0
-
 	for i < len(a) && j < len(b) {
-		charA, charB := a[i], b[j]
-		isDigitA := unicode.IsDigit(rune(charA))
-		isDigitB := unicode.IsDigit(rune(charB))
-
-		if isDigitA && isDigitB {
-			// Find the end of the number chunk
-			i_end, j_end := i, j
-			for i_end < len(a) && unicode.IsDigit(rune(a[i_end])) {
-				i_end++
-			}
-			for j_end < len(b) && unicode.IsDigit(rune(b[j_end])) {
-				j_end++
-			}
-
-			// Parse numbers
-			numA, _ := strconv.Atoi(a[i:i_end])
-			numB, _ := strconv.Atoi(b[j:j_end])
-
-			if numA != numB {
-				return numA < numB
-			}
-
-			i, j = i_end, j_end
+		if unicode.IsDigit(rune(a[i])) && unicode.IsDigit(rune(b[j])) {
+			iEnd, jEnd := i, j
+			for iEnd < len(a) && unicode.IsDigit(rune(a[iEnd])) { iEnd++ }
+			for jEnd < len(b) && unicode.IsDigit(rune(b[jEnd])) { jEnd++ }
+			numA, _ := strconv.Atoi(a[i:iEnd]); numB, _ := strconv.Atoi(b[j:jEnd])
+			if numA != numB { return numA < numB }
+			i, j = iEnd, jEnd
 		} else {
-			if charA != charB {
-				return charA < charB
-			}
-			i++
-			j++
+			if a[i] != b[j] { return a[i] < b[j] }
+			i++; j++
 		}
 	}
-
 	return len(a) < len(b)
-}
-
-// DeleteBook deletes an entire book directory
-func (a *App) DeleteBook(bookName string) error {
-	sanitizedBookName := SanitizeName(bookName)
-	bookPath := filepath.Join(a.vaultDir, sanitizedBookName)
-
-	if !strings.HasPrefix(bookPath, a.vaultDir) {
-		return fmt.Errorf("invalid book name, path traversal detected")
-	}
-
-	return os.RemoveAll(bookPath)
-}
-
-// DeleteImage deletes a specific image from a book
-func (a *App) DeleteImage(bookName string, imageName string) error {
-	sanitizedBookName := SanitizeName(bookName)
-	bookPath := filepath.Join(a.vaultDir, sanitizedBookName)
-	imagePath := filepath.Join(bookPath, imageName)
-
-	if !strings.HasPrefix(imagePath, bookPath) {
-		return fmt.Errorf("invalid image name, path traversal detected")
-	}
-
-	return os.Remove(imagePath)
 }

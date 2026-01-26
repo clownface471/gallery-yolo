@@ -10,9 +10,15 @@ export function DeleteImage(arg1:string,arg2:string):Promise<void>;
 
 export function GetBooks():Promise<Array<main.Book>>;
 
+export function GetChapters(arg1:string):Promise<Array<string>>;
+
 export function GetImagesInBook(arg1:string):Promise<Array<string>>;
 
+export function GetImagesInChapter(arg1:string,arg2:string):Promise<Array<string>>;
+
 export function HasPassword():Promise<boolean>;
+
+export function LockBook(arg1:string,arg2:string):Promise<void>;
 
 export function RenameBook(arg1:string,arg2:string):Promise<void>;
 
@@ -20,6 +26,12 @@ export function SelectFolder():Promise<string>;
 
 export function SetBookCover(arg1:string,arg2:string):Promise<void>;
 
+export function SetBookTags(arg1:string,arg2:Array<string>):Promise<void>;
+
 export function SetMasterPassword(arg1:string):Promise<boolean>;
+
+export function UnlockBook(arg1:string):Promise<void>;
+
+export function VerifyBookPassword(arg1:string,arg2:string):Promise<boolean>;
 
 export function VerifyPassword(arg1:string):Promise<boolean>;

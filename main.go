@@ -40,7 +40,6 @@ func NewFileLoader() *FileLoader {
 // ServeHTTP handles the request to serve a file with on-the-fly decryption
 func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 1. PRIVASI TOTAL: Header Anti-Cache yang Ketat
-	// Mencegah browser menyimpan salinan gambar yang sudah didekripsi
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
@@ -61,20 +60,26 @@ func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// [PENTING] Konversi slash '/' (URL) menjadi backslash '\' (Windows)
+	// Ini krusial untuk fitur Chapter agar path terbaca: "Book\Chapter1\Image.jpg"
+	relativePath = filepath.FromSlash(relativePath)
+
+	// Gabungkan dengan path Vault
 	filePath := filepath.Join(f.vaultPath, relativePath)
 
-	// 4. Keamanan Path Traversal
-	// Pastikan request tidak keluar dari folder vault
+	// 4. Keamanan Path Traversal (Updated untuk Chapter)
 	absVaultPath, _ := filepath.Abs(f.vaultPath)
 	absFilePath, _ := filepath.Abs(filePath)
+
+	// Pastikan path yang diminta benar-benar ada DI DALAM folder vault
 	if !strings.HasPrefix(absFilePath, absVaultPath) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
 	// 5. Cek Keberadaan File
-	_, err = os.Stat(filePath)
-	if os.IsNotExist(err) {
+	stat, err := os.Stat(filePath)
+	if os.IsNotExist(err) || stat.IsDir() {
 		http.NotFound(w, r)
 		return
 	}
@@ -87,12 +92,11 @@ func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 7. DEKRIPSI (PENTING)
-	// Memanggil fungsi TryDecryptData yang ada di app.go (paket main yang sama)
+	// 7. DEKRIPSI
+	// Menggunakan fungsi TryDecryptData dari app.go (package main)
 	decryptedData := TryDecryptData(fileData)
 
 	// 8. Sajikan Gambar
-	// Menggunakan time.Now() agar browser tidak melakukan caching berbasis waktu modifikasi
 	w.Header().Set("Content-Type", "image/jpeg")
 	http.ServeContent(w, r, filepath.Base(filePath), time.Now(), bytes.NewReader(decryptedData))
 }
@@ -107,9 +111,9 @@ func main() {
 		Height: 800,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
-			Handler: fileLoader, // Menggunakan handler kustom kita
+			Handler: fileLoader,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		BackgroundColour: &options.RGBA{R: 30, G: 30, B: 46, A: 1}, // Catppuccin Dark Base
 		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,
