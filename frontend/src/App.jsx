@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     CreateBook, GetBooks, GetChapters, GetImagesInChapter, SelectFolder, HasPassword,
-    SetMasterPassword, VerifyPassword, DeleteBook, RenameBook, UpdateBookMetadata, SetBookCover, SetBookTags,
+    SetMasterPassword, VerifyPassword, DeleteBook, UpdateBookMetadata, SetBookCover,
     LockBook, UnlockBook, VerifyBookPassword, ToggleHiddenZone, IsHiddenZoneActive, LockHiddenZone,
     HasHiddenZonePassword, SetHiddenZonePassword
 } from '../wailsjs/go/main/App';
@@ -24,6 +24,28 @@ const EyeOffIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" heig
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
 const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
 const CrossIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+
+// --- COMPONENTS ---
+const BookHero = ({ book }) => {
+    if (!book) return null;
+    return (
+        <div className="book-hero">
+            <div className="hero-bg" style={{backgroundImage: `url(${book.cover})`}}></div>
+            <div className="hero-content">
+                <div className="hero-cover">
+                    {book.cover ? <img src={book.cover} alt="Cover"/> : <div className="placeholder">No Cover</div>}
+                </div>
+                <div className="hero-info">
+                    <h1>{book.name.replace(/_/g, ' ')}</h1>
+                    <div className="hero-tags">
+                        {book.tags && book.tags.map(t => <span key={t}>{t}</span>)}
+                    </div>
+                    <p className="hero-desc">{book.description || "Tidak ada deskripsi."}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -141,7 +163,11 @@ function App() {
 
     const handleOpenChapter = async (bookName, chapterName) => {
         setIsLoading(true); setCurrentChapter(chapterName);
-        try { const imgs = await GetImagesInChapter(bookName, chapterName); setImageFilenames(imgs || []); setView('gallery'); } 
+        try { 
+            // FIX: GetImagesInBook sudah dihapus di backend, pakai GetImagesInChapter
+            const imgs = await GetImagesInChapter(bookName, chapterName); 
+            setImageFilenames(imgs || []); setView('gallery'); 
+        } 
         catch (e) { alert(e); } setIsLoading(false);
     };
 
@@ -173,7 +199,7 @@ function App() {
         e.preventDefault(); if(!editingBook) return; setIsLoading(true);
         try {
             const tagsArray = editTagsInput.split(',').map(t => t.trim()).filter(t => t !== "");
-            // FIX: Using correct variable editDescInput and editMaskCover
+            // FIX: Panggil UpdateBookMetadata (Rename otomatis dihandle di backend)
             await UpdateBookMetadata(editingBook.name, editNameInput, editDescInput, tagsArray, editIsHidden, editMaskCover);
             if (editLockPass) { await LockBook(editNameInput, editLockPass); }
             setEditingBook(null); await fetchBooks();
@@ -236,27 +262,6 @@ function App() {
             </div>
         </div>
     );
-
-    const BookHero = ({ book }) => {
-        if (!book) return null;
-        return (
-            <div className="book-hero">
-                <div className="hero-bg" style={{backgroundImage: `url(${book.cover})`}}></div>
-                <div className="hero-content">
-                    <div className="hero-cover">
-                        {book.cover ? <img src={book.cover} alt="Cover"/> : <div className="placeholder">No Cover</div>}
-                    </div>
-                    <div className="hero-info">
-                        <h1>{book.name.replace(/_/g, ' ')}</h1>
-                        <div className="hero-tags">
-                            {book.tags && book.tags.map(t => <span key={t}>{t}</span>)}
-                        </div>
-                        <p className="hero-desc">{book.description || "Tidak ada deskripsi."}</p>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
     const renderChapterList = () => (
         <div className="content-scroll-area">
@@ -357,9 +362,8 @@ function App() {
         );
     };
 
-    // FIX LOGIN VISIBILITY: Explicitly return Login if !isAuthenticated
+    // --- MAIN RENDER ---
     if (hasPasswordSetup === null) return <div className="loading-overlay">Loading...</div>;
-    
     if (!isAuthenticated) return (
         <div className="login-container">
             <div className="login-box">
