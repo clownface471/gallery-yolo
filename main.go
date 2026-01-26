@@ -42,11 +42,9 @@ func (f *FileLoader) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	relativePath := strings.TrimPrefix(path, "/img/")
 	if relativePath == path { http.Error(w, "Bad request", 400); return }
 
-	// Fix Windows Path Separator
 	relativePath = filepath.FromSlash(relativePath)
 	filePath := filepath.Join(f.vaultPath, relativePath)
 
-	// Path Traversal Security Check
 	absVault, _ := filepath.Abs(f.vaultPath)
 	absFile, _ := filepath.Abs(filePath)
 	if !strings.HasPrefix(absFile, absVault) { http.Error(w, "Forbidden", 403); return }
@@ -79,10 +77,10 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
-		// KONFIGURASI DRAG & DROP (DIPERBAIKI)
+		// [KEMBALIKAN KE TRUE] Agar Wails menghandle event, bukan browser
 		DragAndDrop: &options.DragAndDrop{
 			EnableFileDrop:     true,  
-			DisableWebViewDrop: false,  
+			DisableWebViewDrop: true,  
 		},
 	})
 

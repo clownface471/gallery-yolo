@@ -3,13 +3,14 @@ import {
     CreateBook, GetBooks, GetChapters, GetImagesInChapter, SelectFolder, HasPassword,
     SetMasterPassword, VerifyPassword, DeleteBook, UpdateBookMetadata, SetBookCover,
     LockBook, UnlockBook, VerifyBookPassword, ToggleHiddenZone, IsHiddenZoneActive, LockHiddenZone,
-    HasHiddenZonePassword, SetHiddenZonePassword
+    HasHiddenZonePassword, SetHiddenZonePassword, BatchImportBooks
 } from '../wailsjs/go/main/App';
-import { OnFileDrop } from '../wailsjs/runtime/runtime';
+// Hapus OnFileDrop jika tidak dipakai, tapi biarkan BatchImportBooks karena dipakai di handleAddBook
+import { OnFileDrop } from '../wailsjs/runtime/runtime'; 
 import './App.css';
 import Reader from './components/Reader';
 
-// --- ICONS (SAMA SEPERTI SEBELUMNYA) ---
+// --- ICONS (Tetap Sama) ---
 const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const HomeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>;
 const LockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
@@ -22,7 +23,7 @@ const TagIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height=
 const FolderIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>;
 const EyeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>;
 const EyeOffIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>;
-const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
+const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
 const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
 const CrossIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 
@@ -66,8 +67,6 @@ function App() {
     const [imageCacheBuster, setImageCacheBuster] = useState(Date.now());
     const [hiddenZoneActive, setHiddenZoneActive] = useState(false);
 
-    const authRef = useRef(false);
-
     // Edit Modal State
     const [editingBook, setEditingBook] = useState(null);
     const [editNameInput, setEditNameInput] = useState('');
@@ -80,70 +79,51 @@ function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [settingsPassInput, setSettingsPassInput] = useState('');
 
-    useEffect(() => { authRef.current = isAuthenticated; }, [isAuthenticated]);
     useEffect(() => { const check = async () => setHasPasswordSetup(await HasPassword()); check(); }, []);
 
-    // --- DRAG & DROP LISTENER (UPDATED) ---
-    useEffect(() => {
-        OnFileDrop((x, y, paths) => {
-            if (!authRef.current) return;
-            if (paths && paths.length > 0) {
-                handleDragImport(paths);
-            }
-        });
-    }, []); 
+    // --- FITUR UTAMA: ADD BOOK (REVISI TOTAL) ---
+    const handleAddBook = async () => {
+        const path = await SelectFolder();
+        if (!path) return;
 
-    const handleDragImport = async (paths) => {
-        // [NEW] LOGIC BULK IMPORT
-        if (paths.length > 1) {
-            // Jika user drop BANYAK folder sekaligus
-            if (!confirm(`Terdeteksi ${paths.length} folder/file. Import semuanya sebagai buku terpisah?`)) return;
+        const folderName = path.split(/[\\/]/).pop();
 
-            setIsLoading(true);
-            let successCount = 0;
+        const choice = prompt(
+            `Folder terpilih: "${folderName}"\n\n` +
+            `Ketik '1' -> Import Folder ini sebagai SATU buku.\n` +
+            `Ketik '2' -> Scan isi folder ini (Batch Import).\n\n` +
+            `Masukkan pilihan (1 atau 2):`, 
+            "1"
+        );
 
-            for (let i = 0; i < paths.length; i++) {
-                const path = paths[i];
-                // Ambil nama folder dari path (Windows/Unix safe)
-                const name = path.split(/[\\/]/).pop();
-                
-                setStatusMessage(`Importing (${i+1}/${paths.length}): ${name}...`);
-                
-                try {
-                    // Auto-create tanpa prompt nama
-                    await CreateBook(name, path, false); 
-                    successCount++;
-                } catch (e) {
-                    console.error(`Gagal import ${name}:`, e);
-                }
-            }
-
-            setStatusMessage(`Selesai! ${successCount} buku berhasil diimpor.`);
-            setTimeout(() => setStatusMessage(''), 3000);
-            await fetchBooks();
-            setIsLoading(false);
-
-        } else {
-            // [EXISTING] LOGIC SINGLE FOLDER (Pakai Prompt)
-            const path = paths[0];
-            const name = path.split(/[\\/]/).pop();
-
-            const confirmedName = prompt(`Import folder ini sebagai buku?\n\nPath: ${path}`, name);
-            if (!confirmedName) return;
+        if (choice === '1') {
+            const name = prompt("Nama Buku:", folderName);
+            if (!name) return;
 
             setIsLoading(true);
-            setStatusMessage(`Importing ${confirmedName}...`);
-            
+            setStatusMessage("Importing Single Book...");
             try {
-                const res = await CreateBook(confirmedName, path, false);
-                setStatusMessage(res);
-                setTimeout(() => setStatusMessage(''), 3000);
-                await fetchBooks();
+                const res = await CreateBook(name, path, false);
+                alert(res);
+            } catch(e) { alert("Error: " + e); }
+            
+        } else if (choice === '2') {
+            if (!confirm(`Yakin ingin mengimpor semua folder di dalam "${folderName}" sebagai buku terpisah?`)) return;
+            
+            setIsLoading(true);
+            setStatusMessage("Scanning & Bulk Importing...");
+            try {
+                const logs = await BatchImportBooks(path);
+                alert(logs.join('\n'));
             } catch (e) {
-                alert("Import Gagal: " + e);
+                alert("Error Bulk Import: " + e);
             }
-            setIsLoading(false);
+        } else {
+            return;
         }
+
+        await fetchBooks();
+        setIsLoading(false);
     };
 
     const fetchBooks = useCallback(async () => {
@@ -235,20 +215,14 @@ function App() {
 
     const handleBack = () => {
         if (view === 'gallery') {
+            // [NEW] Refresh saat kembali dari baca, agar progress di library terupdate
+            fetchBooks();
             if (chapters.length > 0) { setView('chapters'); setImageFilenames([]); } 
-            else { setView('library'); setCurrentBookObj(null); fetchBooks(); }
+            else { setView('library'); setCurrentBookObj(null); }
         } else if (view === 'chapters') { setView('library'); setCurrentBookObj(null); fetchBooks(); } 
         else { setSearchQuery(''); setTagFilters({}); }
     };
 
-    const handleAddBook = async () => {
-        const name = prompt("Nama Buku Baru:"); if(!name) return;
-        const path = await SelectFolder(); if(!path) return;
-        setIsLoading(true); setStatusMessage("Importing (Deep Scan)...");
-        const res = await CreateBook(name, path, false);
-        setStatusMessage(res); setTimeout(() => setStatusMessage(''), 3000);
-        await fetchBooks(); setIsLoading(false);
-    };
     const handleUpdate = async (e, name) => { e.stopPropagation(); const path = await SelectFolder(); if(!path) return; setIsLoading(true); await CreateBook(name, path, true); await fetchBooks(); setIsLoading(false); };
     const handleDelete = async (e, name) => { e.stopPropagation(); if(confirm(`Hapus ${name}?`)) { setIsLoading(true); await DeleteBook(name); await fetchBooks(); setIsLoading(false); } };
 
@@ -277,14 +251,13 @@ function App() {
     const handleChangeHiddenPass = async () => { if (!settingsPassInput) return; await SetHiddenZonePassword(settingsPassInput); alert("Hidden OK"); setSettingsPassInput(''); }
 
     // --- RENDERERS ---
-
     const renderSidebar = () => (
         <div className="sidebar">
             <div className="app-logo">📚 GalleryVault</div>
             <div className="nav-menu-top">
                 {view === 'library' && (
                     <div className="search-container">
-                        <input type="text" className="search-input" placeholder="🔍 Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <input name="search" type="text" className="search-input" placeholder="🔍 Cari..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
                 )}
                 <button className={`nav-item ${view === 'library' && Object.keys(tagFilters).length === 0 ? 'active' : ''}`} onClick={() => {handleBack(); setTagFilters({});}}>
@@ -356,6 +329,19 @@ function App() {
                             <div className="book-info-overlay"><div className="book-title">{b.name.replace(/_/g, ' ')}</div></div>
                             {b.is_locked && <div className="indicator locked"><LockIcon style={{width:16, height:16}} /></div>}
                             {b.is_hidden && <div className="indicator hidden"><EyeOffIcon style={{width:16, height:16}} /></div>}
+                            
+                            {/* [NEW] Progress Indicator di Cover */}
+                            {b.last_page > 0 && (
+                                <div className="indicator" style={{
+                                    top: 'auto', bottom: 65, right: 10, 
+                                    background: 'var(--accent)', color: '#1e1e2e', 
+                                    fontSize: '0.7rem', fontWeight: 'bold', 
+                                    borderRadius: '4px', padding: '2px 6px'
+                                }}>
+                                    PAGE {b.last_page + 1}
+                                </div>
+                            )}
+
                             {b.tags && b.tags.length > 0 && (
                                 <div className="tag-badges">{b.tags.slice(0, 3).map(t => <span key={t}>{t}</span>)}</div>
                             )}
@@ -373,7 +359,16 @@ function App() {
     );
 
     const renderGalleryView = () => (
-        <Reader images={imageFilenames} bookName={currentBookObj?.name} chapterName={currentChapter} imageCacheBuster={imageCacheBuster} onBack={handleBack} onSetCover={handleReaderSetCover} />
+        <Reader 
+            images={imageFilenames} 
+            bookName={currentBookObj?.name} 
+            chapterName={currentChapter} 
+            imageCacheBuster={imageCacheBuster} 
+            // [NEW] Oper Last Page info ke Reader
+            initialPage={currentBookObj?.last_page || 0} 
+            onBack={handleBack} 
+            onSetCover={handleReaderSetCover} 
+        />
     );
 
     const renderEditModal = () => {
@@ -383,17 +378,17 @@ function App() {
                 <div className="login-box" onClick={e => e.stopPropagation()} style={{textAlign:'left', width: 500}}>
                     <h2 style={{marginTop:0, color:'#89b4fa'}}>Edit Info</h2>
                     <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:15}}>
-                        <div><label className="input-label">Judul</label><input className="auth-input compact" value={editNameInput} onChange={e => setEditNameInput(e.target.value)} /></div>
-                        <div><label className="input-label">Tags</label><input className="auth-input compact" value={editTagsInput} onChange={e => setEditTagsInput(e.target.value)} /></div>
+                        <div><label className="input-label">Judul</label><input name="editName" className="auth-input compact" value={editNameInput} onChange={e => setEditNameInput(e.target.value)} /></div>
+                        <div><label className="input-label">Tags</label><input name="editTags" className="auth-input compact" value={editTagsInput} onChange={e => setEditTagsInput(e.target.value)} /></div>
                     </div>
                     <label className="input-label">Deskripsi</label>
-                    <textarea className="auth-input compact" style={{height:80, resize:'vertical'}} value={editDescInput} onChange={e => setEditDescInput(e.target.value)} />
+                    <textarea name="editDesc" className="auth-input compact" style={{height:80, resize:'vertical'}} value={editDescInput} onChange={e => setEditDescInput(e.target.value)} />
                     <div className="security-section">
                         <label className="input-label" style={{color:'#f38ba8'}}>Keamanan</label>
-                        <input className="auth-input compact" type="password" value={editLockPass} onChange={e => setEditLockPass(e.target.value)} placeholder="Set Password Baru"/>
+                        <input name="editPass" className="auth-input compact" type="password" value={editLockPass} onChange={e => setEditLockPass(e.target.value)} placeholder="Set Password Baru"/>
                         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}>
-                            <div className="checkbox-row"><input type="checkbox" id="hideCheck" checked={editIsHidden} onChange={e => setEditIsHidden(e.target.checked)} /><label htmlFor="hideCheck">Hidden Book</label></div>
-                            <div className="checkbox-row"><input type="checkbox" id="maskCheck" checked={editMaskCover} onChange={e => setEditMaskCover(e.target.checked)} /><label htmlFor="maskCheck">Mask Cover</label></div>
+                            <div className="checkbox-row"><input name="hideCheck" type="checkbox" id="hideCheck" checked={editIsHidden} onChange={e => setEditIsHidden(e.target.checked)} /><label htmlFor="hideCheck">Hidden Book</label></div>
+                            <div className="checkbox-row"><input name="maskCheck" type="checkbox" id="maskCheck" checked={editMaskCover} onChange={e => setEditMaskCover(e.target.checked)} /><label htmlFor="maskCheck">Mask Cover</label></div>
                         </div>
                         {editingBook.is_locked && <button onClick={handleUnlockAction} className="unlock-btn">🔓 Hapus Password</button>}
                     </div>
@@ -412,7 +407,7 @@ function App() {
             <div className="modal-overlay">
                 <div className="login-box" onClick={e => e.stopPropagation()} style={{textAlign:'left'}}>
                     <h2 style={{marginTop:0, color:'#89b4fa'}}>Password Management</h2>
-                    <input className="auth-input" type="password" value={settingsPassInput} onChange={e => setSettingsPassInput(e.target.value)} placeholder="Password Baru" />
+                    <input name="settingsPass" className="auth-input" type="password" value={settingsPassInput} onChange={e => setSettingsPassInput(e.target.value)} placeholder="Password Baru" />
                     <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:10}}>
                         <button className="auth-button" onClick={handleChangeMasterPass}>Ubah Master Password</button>
                         <button className="auth-button" style={{background:'#f38ba8', color:'#1e1e2e'}} onClick={handleChangeHiddenPass}>Ubah Hidden Zone Password</button>
@@ -423,7 +418,6 @@ function App() {
         );
     };
 
-    // --- MAIN RENDER ---
     if (hasPasswordSetup === null) return <div className="loading-overlay">Loading...</div>;
     
     if (!isAuthenticated) return (
@@ -431,7 +425,7 @@ function App() {
             <div className="login-box">
                 <h1>{hasPasswordSetup ? "GalleryVault" : "Setup Password"}</h1>
                 <form onSubmit={handleLogin}>
-                    <input type="password" className="auth-input" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)} autoFocus placeholder="Passphrase"/>
+                    <input name="loginPass" type="password" className="auth-input" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)} autoFocus placeholder="Passphrase"/>
                     <button className="auth-button">Unlock</button>
                 </form>
                 {authError && <p className="auth-error">{authError}</p>}
@@ -439,19 +433,8 @@ function App() {
         </div>
     );
 
-      return (
-            <div id="App" 
-                onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Memberi sinyal visual ke Windows bahwa area ini bisa menerima file
-                    e.dataTransfer.dropEffect = "copy"; 
-                }}
-                onDrop={(e) => {
-                    e.preventDefault(); // Mencegah browser membuka gambar di tab baru
-                    e.stopPropagation();
-                }}
-            >
+    return (
+        <div id="App">
             {isLoading && <div className="loading-overlay"><div></div><p>{statusMessage || 'Processing...'}</p></div>}
             {renderSidebar()}
             <div className="main-content">
