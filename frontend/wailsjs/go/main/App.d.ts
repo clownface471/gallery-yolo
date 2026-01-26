@@ -12,25 +12,31 @@ export function GetBooks():Promise<Array<main.Book>>;
 
 export function GetChapters(arg1:string):Promise<Array<string>>;
 
-export function GetImagesInBook(arg1:string):Promise<Array<string>>;
-
 export function GetImagesInChapter(arg1:string,arg2:string):Promise<Array<string>>;
+
+export function HasHiddenZonePassword():Promise<boolean>;
 
 export function HasPassword():Promise<boolean>;
 
+export function IsHiddenZoneActive():Promise<boolean>;
+
 export function LockBook(arg1:string,arg2:string):Promise<void>;
 
-export function RenameBook(arg1:string,arg2:string):Promise<void>;
+export function LockHiddenZone():Promise<void>;
 
 export function SelectFolder():Promise<string>;
 
 export function SetBookCover(arg1:string,arg2:string):Promise<void>;
 
-export function SetBookTags(arg1:string,arg2:Array<string>):Promise<void>;
+export function SetHiddenZonePassword(arg1:string):Promise<boolean>;
 
 export function SetMasterPassword(arg1:string):Promise<boolean>;
 
+export function ToggleHiddenZone(arg1:string):Promise<boolean>;
+
 export function UnlockBook(arg1:string):Promise<void>;
+
+export function UpdateBookMetadata(arg1:string,arg2:string,arg3:string,arg4:Array<string>,arg5:boolean,arg6:boolean):Promise<void>;
 
 export function VerifyBookPassword(arg1:string,arg2:string):Promise<boolean>;
 

@@ -6,12 +6,18 @@ const PageIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height
 const GridIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>;
 const CoverIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 22h-16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2z"></path><path d="m9 12-2 3h10l-4-5-4 5z"></path></svg>;
 
-// Tambahkan prop 'onSetCover'
-const Reader = ({ images, currentBook, imageCacheBuster, onBack, onSetCover }) => {
+// Props updated: `chapterName` is now separate from `bookName`
+const Reader = ({ images, bookName, chapterName, imageCacheBuster, onBack, onSetCover }) => {
     const [mode, setMode] = useState('masonry'); 
     const [currentIndex, setCurrentIndex] = useState(0);
     const [showControls, setShowControls] = useState(true);
     const scrollContainerRef = useRef(null);
+
+    // Reset view when book changes
+    useEffect(() => {
+        setMode('masonry');
+        setCurrentIndex(0);
+    }, [bookName, chapterName]);
 
     // Auto-hide controls
     useEffect(() => {
@@ -46,12 +52,28 @@ const Reader = ({ images, currentBook, imageCacheBuster, onBack, onSetCover }) =
     const goNext = () => { if (currentIndex < images.length - 1) setCurrentIndex(prev => prev + 1); };
     const goPrev = () => { if (currentIndex > 0) setCurrentIndex(prev => prev - 1); };
 
-    const getImgUrl = (filename) => `/img/${encodeURIComponent(currentBook)}/${encodeURIComponent(filename)}?t=${imageCacheBuster}`;
+    // FIX: URL Construction Logic for Nested Chapters
+    const getImgUrl = (filename) => {
+        // Base: /img/BookName
+        let url = `/img/${encodeURIComponent(bookName)}`;
+        // If Chapter: /img/BookName/ChapterName
+        if (chapterName) {
+            url += `/${encodeURIComponent(chapterName)}`;
+        }
+        // File: /img/BookName/ChapterName/Filename.jpg
+        url += `/${encodeURIComponent(filename)}`;
+        return url + `?t=${imageCacheBuster}`;
+    };
 
     const handleImageClick = (index) => {
         setCurrentIndex(index);
         setMode('paged'); 
     };
+
+    // Display Title logic
+    const displayTitle = chapterName 
+        ? `${bookName.replace(/_/g, ' ')} / ${chapterName.replace(/_/g, ' ')}`
+        : bookName.replace(/_/g, ' ');
 
     // --- RENDER MODES ---
     const renderMasonry = () => (
@@ -91,22 +113,15 @@ const Reader = ({ images, currentBook, imageCacheBuster, onBack, onSetCover }) =
             <div className={`reader-controls ${showControls ? 'visible' : ''}`}>
                 <div style={{display:'flex', gap:10, alignItems:'center'}}>
                     <button className="control-btn back" onClick={onBack}>← Back</button>
-                    <div className="reader-info">{currentBook.replace(/_/g, ' ')}</div>
+                    <div className="reader-info">{displayTitle}</div>
                 </div>
 
                 <div className="mode-switch">
-                    {/* BUTTON SET COVER (Hanya Muncul di Paged Mode) */}
                     {mode === 'paged' && (
-                        <button 
-                            className="control-btn" 
-                            onClick={() => onSetCover(images[currentIndex])}
-                            title="Set current image as Book Cover"
-                            style={{marginRight: 15, borderColor: '#a6e3a1', color: '#a6e3a1'}}
-                        >
+                        <button className="control-btn" onClick={() => onSetCover(images[currentIndex])} style={{marginRight: 15, borderColor: '#a6e3a1', color: '#a6e3a1'}}>
                             <CoverIcon /> Set Cover
                         </button>
                     )}
-
                     <button className={`control-btn ${mode === 'masonry' ? 'active' : ''}`} onClick={() => setMode('masonry')}><GridIcon /></button>
                     <button className={`control-btn ${mode === 'webtoon' ? 'active' : ''}`} onClick={() => setMode('webtoon')}><ScrollIcon /></button>
                     <button className={`control-btn ${mode === 'paged' ? 'active' : ''}`} onClick={() => setMode('paged')}><PageIcon /></button>

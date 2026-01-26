@@ -22,24 +22,28 @@ export function GetChapters(arg1) {
   return window['go']['main']['App']['GetChapters'](arg1);
 }
 
-export function GetImagesInBook(arg1) {
-  return window['go']['main']['App']['GetImagesInBook'](arg1);
-}
-
 export function GetImagesInChapter(arg1, arg2) {
   return window['go']['main']['App']['GetImagesInChapter'](arg1, arg2);
+}
+
+export function HasHiddenZonePassword() {
+  return window['go']['main']['App']['HasHiddenZonePassword']();
 }
 
 export function HasPassword() {
   return window['go']['main']['App']['HasPassword']();
 }
 
+export function IsHiddenZoneActive() {
+  return window['go']['main']['App']['IsHiddenZoneActive']();
+}
+
 export function LockBook(arg1, arg2) {
   return window['go']['main']['App']['LockBook'](arg1, arg2);
 }
 
-export function RenameBook(arg1, arg2) {
-  return window['go']['main']['App']['RenameBook'](arg1, arg2);
+export function LockHiddenZone() {
+  return window['go']['main']['App']['LockHiddenZone']();
 }
 
 export function SelectFolder() {
@@ -50,16 +54,24 @@ export function SetBookCover(arg1, arg2) {
   return window['go']['main']['App']['SetBookCover'](arg1, arg2);
 }
 
-export function SetBookTags(arg1, arg2) {
-  return window['go']['main']['App']['SetBookTags'](arg1, arg2);
+export function SetHiddenZonePassword(arg1) {
+  return window['go']['main']['App']['SetHiddenZonePassword'](arg1);
 }
 
 export function SetMasterPassword(arg1) {
   return window['go']['main']['App']['SetMasterPassword'](arg1);
 }
 
+export function ToggleHiddenZone(arg1) {
+  return window['go']['main']['App']['ToggleHiddenZone'](arg1);
+}
+
 export function UnlockBook(arg1) {
   return window['go']['main']['App']['UnlockBook'](arg1);
+}
+
+export function UpdateBookMetadata(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['UpdateBookMetadata'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function VerifyBookPassword(arg1, arg2) {
