@@ -34,6 +34,8 @@ export function SetHiddenZonePassword(arg1:string):Promise<boolean>;
 
 export function SetMasterPassword(arg1:string):Promise<boolean>;
 
+export function ToggleBookFavorite(arg1:string):Promise<boolean>;
+
 export function ToggleHiddenZone(arg1:string):Promise<boolean>;
 
 export function UnlockBook(arg1:string):Promise<void>;

@@ -66,6 +66,10 @@ export function SetMasterPassword(arg1) {
   return window['go']['main']['App']['SetMasterPassword'](arg1);
 }
 
+export function ToggleBookFavorite(arg1) {
+  return window['go']['main']['App']['ToggleBookFavorite'](arg1);
+}
+
 export function ToggleHiddenZone(arg1) {
   return window['go']['main']['App']['ToggleHiddenZone'](arg1);
 }

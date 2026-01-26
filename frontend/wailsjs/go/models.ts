@@ -9,6 +9,8 @@ export namespace main {
 	    is_hidden: boolean;
 	    mask_cover: boolean;
 	    last_page: number;
+	    is_favorite: boolean;
+	    last_read_time: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Book(source);
@@ -24,6 +26,8 @@ export namespace main {
 	        this.is_hidden = source["is_hidden"];
 	        this.mask_cover = source["mask_cover"];
 	        this.last_page = source["last_page"];
+	        this.is_favorite = source["is_favorite"];
+	        this.last_read_time = source["last_read_time"];
 	    }
 	}
 

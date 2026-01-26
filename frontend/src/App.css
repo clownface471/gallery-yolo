@@ -409,3 +409,107 @@ body {
 .click-zone {
   z-index: 50; /* Pastikan di atas gambar tapi di bawah controls */
 }
+
+/* --- LAYOUT FIXES & NEW FEATURES STYLING --- */
+
+/* 1. Memberi jarak (padding) agar tidak menempel ke dinding */
+.content-scroll-area {
+  padding: 30px; /* Menambah ruang gerak di sekitar konten */
+  box-sizing: border-box;
+}
+
+/* 2. Styling Header Library (Tempat "X Buku Ditemukan" & Dropdown Sort) */
+.library-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px; /* Jarak antara header dan grid buku */
+  padding: 0 5px; /* Sedikit padding internal */
+}
+
+/* Styling Dropdown Sort agar senada dengan tema */
+.library-header select {
+  background-color: rgba(30, 30, 46, 0.8);
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  padding: 8px 12px;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.library-header select:hover {
+  border-color: #89b4fa;
+}
+
+/* 3. Styling Tombol Favorit (Hati) di Cover */
+.fav-btn {
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); /* Bayangan agar terlihat jelas di cover terang */
+}
+
+.fav-btn:hover {
+  transform: scale(1.2); /* Efek membesar saat di-hover */
+}
+
+.fav-btn:active {
+  transform: scale(0.9);
+}
+
+/* 4. Styling Badge Progress (Page X) */
+.indicator {
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+  font-family: monospace;
+  letter-spacing: 0.5px;
+  z-index: 5;
+}
+
+/* 5. Perbaikan Grid agar lebih responsif */
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); /* Auto adjust columns */
+  gap: 25px; /* Jarak antar buku */
+  padding-bottom: 80px; /* Ruang extra di bawah untuk tombol + */
+}
+
+/* 6. Memastikan tombol FAB (+) tidak menutupi konten penting */
+.fab {
+  right: 40px;
+  bottom: 40px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+/* Update style yang sudah ada atau tambahkan di paling bawah */
+
+.library-header select {
+  background-color: rgba(30, 30, 46, 0.8);
+  color: #cdd6f4;
+  border: 1px solid #45475a;
+  
+  /* [UBAH PADDING] Memberi ruang lebih di kanan agar tidak menabrak panah */
+  padding: 8px 35px 8px 15px; 
+  
+  border-radius: 8px;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.2s, background-color 0.2s;
+  
+  /* [OPSIONAL] Menghilangkan style default browser agar konsisten (tapi panah hilang) */
+  /* appearance: none; */ 
+  /* background-image: url('data:image/svg+xml;...'); */
+}
+
+.library-header select:hover {
+  border-color: #89b4fa;
+  background-color: rgba(40, 40, 60, 0.9);
+}
+
+/* Pastikan option di dalamnya juga punya background gelap (untuk Windows) */
+.library-header select option {
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  padding: 10px;
+}

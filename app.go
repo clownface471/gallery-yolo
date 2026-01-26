@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time" // [PENTING] Import time untuk LastReadTime
 	"unicode"
 
 	"github.com/disintegration/imaging"
@@ -40,26 +41,30 @@ type Config struct {
 	HiddenZoneHash string `json:"hidden_zone_hash"`
 }
 
-// [UPDATE] Tambah field LastPage & TotalPages
+// [UPDATE] Tambah IsFavorite & LastReadTime
 type BookMetadata struct {
-	Tags        []string `json:"tags"`
-	Description string   `json:"description"`
-	MaskCover   bool     `json:"mask_cover"`
-	IsHidden    bool     `json:"is_hidden"`
-	LastPage    int      `json:"last_page"`   // Index halaman terakhir (0-based)
-	TotalPages  int      `json:"total_pages"` // Total halaman (untuk persentase nanti)
+	Tags         []string `json:"tags"`
+	Description  string   `json:"description"`
+	MaskCover    bool     `json:"mask_cover"`
+	IsHidden     bool     `json:"is_hidden"`
+	LastPage     int      `json:"last_page"`
+	TotalPages   int      `json:"total_pages"`
+	IsFavorite   bool     `json:"is_favorite"`    // [NEW] Status Favorit
+	LastReadTime int64    `json:"last_read_time"` // [NEW] Timestamp Unix
 }
 
-// [UPDATE] Tambah field LastPage agar bisa dibaca frontend
+// [UPDATE] Tambah field untuk frontend
 type Book struct {
-	Name        string   `json:"name"`
-	Cover       string   `json:"cover"`
-	Tags        []string `json:"tags"`
-	Description string   `json:"description"`
-	IsLocked    bool     `json:"is_locked"`
-	IsHidden    bool     `json:"is_hidden"`
-	MaskCover   bool     `json:"mask_cover"`
-	LastPage    int      `json:"last_page"`
+	Name         string   `json:"name"`
+	Cover        string   `json:"cover"`
+	Tags         []string `json:"tags"`
+	Description  string   `json:"description"`
+	IsLocked     bool     `json:"is_locked"`
+	IsHidden     bool     `json:"is_hidden"`
+	MaskCover    bool     `json:"mask_cover"`
+	LastPage     int      `json:"last_page"`
+	IsFavorite   bool     `json:"is_favorite"`    // [NEW]
+	LastReadTime int64    `json:"last_read_time"` // [NEW]
 }
 
 type BookSecurity struct {
@@ -72,7 +77,7 @@ type App struct {
 	configPath       string
 	vaultDir         string
 	hiddenModeActive bool
-	unlockedBooks    map[string]bool // Session cache untuk buku yang sudah dibuka passwordnya
+	unlockedBooks    map[string]bool
 }
 
 func NewApp() *App {
@@ -154,7 +159,6 @@ func (a *App) LockBook(bookName, p string) error {
 	path := filepath.Join(a.vaultDir, SanitizeName(bookName), "security.json")
 	sec := BookSecurity{PasswordHash: HashString(p)}
 	data, _ := json.MarshalIndent(sec, "", " ")
-	// Reset session unlock status
 	delete(a.unlockedBooks, bookName)
 	return os.WriteFile(path, data, 0644)
 }
@@ -169,7 +173,7 @@ func (a *App) VerifyBookPassword(bookName, p string) bool {
 	json.Unmarshal(data, &sec)
 	valid := sec.PasswordHash == HashString(p)
 	if valid {
-		a.unlockedBooks[bookName] = true // Mark as unlocked for this session
+		a.unlockedBooks[bookName] = true
 	}
 	return valid
 }
@@ -181,15 +185,11 @@ func (a *App) UnlockBook(bookName string) error {
 // --- METADATA MANAGEMENT ---
 func (a *App) loadMetadata(bookPath string) BookMetadata {
 	meta := BookMetadata{}
-
-	// Coba baca metadata.json (Format Baru)
 	metaPath := filepath.Join(bookPath, "metadata.json")
 	if data, err := os.ReadFile(metaPath); err == nil {
 		json.Unmarshal(data, &meta)
 		return meta
 	}
-
-	// Migrasi Legacy: Coba baca tags.json dan hidden.marker
 	legacyTagsPath := filepath.Join(bookPath, "tags.json")
 	if data, err := os.ReadFile(legacyTagsPath); err == nil {
 		json.Unmarshal(data, &meta.Tags)
@@ -197,12 +197,10 @@ func (a *App) loadMetadata(bookPath string) BookMetadata {
 	if _, err := os.Stat(filepath.Join(bookPath, "hidden.marker")); err == nil {
 		meta.IsHidden = true
 	}
-
 	return meta
 }
 
 func (a *App) UpdateBookMetadata(bookName, newName, description string, tags []string, isHidden, maskCover bool) error {
-	// 1. Rename jika perlu
 	oldSafe := SanitizeName(bookName)
 	newSafe := SanitizeName(newName)
 
@@ -212,15 +210,12 @@ func (a *App) UpdateBookMetadata(bookName, newName, description string, tags []s
 		if err := os.Rename(oldPath, newPath); err != nil {
 			return err
 		}
-		bookName = newName // Update referensi nama
+		bookName = newName
 	}
 
 	bookPath := filepath.Join(a.vaultDir, newSafe)
-
-	// [UPDATE] Load existing metadata to preserve LastPage
 	currentMeta := a.loadMetadata(bookPath)
 
-	// 2. Sanitasi Tags
 	uniqueMap := make(map[string]bool)
 	var cleanTags []string
 	for _, t := range tags {
@@ -231,29 +226,43 @@ func (a *App) UpdateBookMetadata(bookName, newName, description string, tags []s
 		}
 	}
 
-	// 3. Simpan Metadata Baru (Preserve LastPage)
 	meta := BookMetadata{
-		Tags:        cleanTags,
-		Description: description,
-		IsHidden:    isHidden,
-		MaskCover:   maskCover,
-		LastPage:    currentMeta.LastPage,   // Keep existing progress
-		TotalPages:  currentMeta.TotalPages, // Keep existing total
+		Tags:         cleanTags,
+		Description:  description,
+		IsHidden:     isHidden,
+		MaskCover:    maskCover,
+		LastPage:     currentMeta.LastPage,
+		TotalPages:   currentMeta.TotalPages,
+		IsFavorite:   currentMeta.IsFavorite,   // Preserve
+		LastReadTime: currentMeta.LastReadTime, // Preserve
 	}
 
 	data, _ := json.MarshalIndent(meta, "", " ")
 	return os.WriteFile(filepath.Join(bookPath, "metadata.json"), data, 0644)
 }
 
-// [NEW] Fungsi Update Progress Baca
+// [UPDATE] Update Book Progress + LastReadTime
 func (a *App) UpdateBookProgress(bookName string, pageIndex int) error {
 	bookPath := filepath.Join(a.vaultDir, SanitizeName(bookName))
 	meta := a.loadMetadata(bookPath)
 
 	meta.LastPage = pageIndex
+	meta.LastReadTime = time.Now().Unix() // Update waktu baca terakhir
 
 	data, _ := json.MarshalIndent(meta, "", " ")
 	return os.WriteFile(filepath.Join(bookPath, "metadata.json"), data, 0644)
+}
+
+// [NEW] Toggle Favorite Status
+func (a *App) ToggleBookFavorite(bookName string) (bool, error) {
+	bookPath := filepath.Join(a.vaultDir, SanitizeName(bookName))
+	meta := a.loadMetadata(bookPath)
+
+	meta.IsFavorite = !meta.IsFavorite // Toggle status
+
+	data, _ := json.MarshalIndent(meta, "", " ")
+	err := os.WriteFile(filepath.Join(bookPath, "metadata.json"), data, 0644)
+	return meta.IsFavorite, err
 }
 
 // --- IMPORT & FILE ---
@@ -325,7 +334,6 @@ func (a *App) CreateBook(bookName string, sourcePath string, syncMode bool) stri
 	return fmt.Sprintf("Sukses! %d gambar.", imageCount)
 }
 
-// Fitur Batch Import
 func (a *App) BatchImportBooks(rootPath string) []string {
 	var logs []string
 	entries, err := os.ReadDir(rootPath)
@@ -338,11 +346,7 @@ func (a *App) BatchImportBooks(rootPath string) []string {
 		if entry.IsDir() {
 			bookName := entry.Name()
 			fullPath := filepath.Join(rootPath, bookName)
-
-			// Panggil fungsi CreateBook yang sudah ada
 			res := a.CreateBook(bookName, fullPath, false)
-
-			// Catat log singkat
 			if strings.Contains(res, "Sukses") {
 				count++
 			} else {
@@ -350,9 +354,7 @@ func (a *App) BatchImportBooks(rootPath string) []string {
 			}
 		}
 	}
-
 	summary := fmt.Sprintf("Selesai! %d buku berhasil diimpor.", count)
-	// Taruh summary di paling atas log
 	result := append([]string{summary}, logs...)
 	return result
 }
@@ -363,24 +365,18 @@ func (a *App) GetBooks() []Book {
 	for _, e := range entries {
 		if e.IsDir() {
 			bookPath := filepath.Join(a.vaultDir, e.Name())
-
-			// Load Metadata
 			meta := a.loadMetadata(bookPath)
 
-			// Logic Hidden
 			if meta.IsHidden && !a.hiddenModeActive {
 				continue
 			}
 
-			// Logic Lock
 			isLocked := false
 			if _, err := os.Stat(filepath.Join(bookPath, "security.json")); err == nil {
 				isLocked = true
 			}
 
-			// Logic Cover (Masking)
 			coverB64 := ""
-			// Cover dikirim JIKA: Tidak di-mask ATAU (Di-mask TAPI sudah di-unlock sesi ini)
 			shouldShowCover := !meta.MaskCover || (meta.MaskCover && a.unlockedBooks[e.Name()])
 
 			if shouldShowCover {
@@ -410,14 +406,16 @@ func (a *App) GetBooks() []Book {
 			}
 
 			books = append(books, Book{
-				Name:        e.Name(),
-				Cover:       coverB64,
-				Tags:        meta.Tags,
-				Description: meta.Description,
-				IsLocked:    isLocked,
-				IsHidden:    meta.IsHidden,
-				MaskCover:   meta.MaskCover,
-				LastPage:    meta.LastPage, // [UPDATE] Kirim LastPage ke frontend
+				Name:         e.Name(),
+				Cover:        coverB64,
+				Tags:         meta.Tags,
+				Description:  meta.Description,
+				IsLocked:     isLocked,
+				IsHidden:     meta.IsHidden,
+				MaskCover:    meta.MaskCover,
+				LastPage:     meta.LastPage,
+				IsFavorite:   meta.IsFavorite,   // [NEW]
+				LastReadTime: meta.LastReadTime, // [NEW]
 			})
 		}
 	}
@@ -509,5 +507,4 @@ func naturalCompare(a, b string) bool {
 		}
 	}
 	return len(a) < len(b)
-
 }
