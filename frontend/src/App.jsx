@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     CreateBook, GetBooks, GetChapters, GetImagesInChapter, SelectFolder, HasPassword,
-    SetMasterPassword, VerifyPassword, DeleteBook, RenameBook, UpdateBookMetadata, SetBookCover,
+    SetMasterPassword, VerifyPassword, DeleteBook, RenameBook, UpdateBookMetadata, SetBookCover, SetBookTags,
     LockBook, UnlockBook, VerifyBookPassword, ToggleHiddenZone, IsHiddenZoneActive, LockHiddenZone,
     HasHiddenZonePassword, SetHiddenZonePassword
 } from '../wailsjs/go/main/App';
 import './App.css';
 import Reader from './components/Reader';
 
-// Icons
+// --- ICONS ---
 const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const HomeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>;
 const LockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
@@ -38,10 +38,7 @@ function App() {
     const [currentChapter, setCurrentChapter] = useState('');
     const [imageFilenames, setImageFilenames] = useState([]);
     const [searchQuery, setSearchQuery] = useState(''); 
-    
-    // NEW: Tag Filtering (Map: tagName -> 'include' | 'exclude')
     const [tagFilters, setTagFilters] = useState({}); 
-
     const [isLoading, setIsLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState('');
     const [imageCacheBuster, setImageCacheBuster] = useState(Date.now());
@@ -82,33 +79,21 @@ function App() {
         return Array.from(tags).sort();
     }, [books]);
 
-    // FILTER LOGIC
     const filteredBooks = useMemo(() => {
         return books.filter(b => {
-            // 1. Search Query
             if (searchQuery && !b.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-
-            // 2. Tag Filters
-            // Logic: Include (Must have ALL included tags) AND Exclude (Must NOT have ANY excluded tags)
             const includedTags = Object.keys(tagFilters).filter(t => tagFilters[t] === 'include');
             const excludedTags = Object.keys(tagFilters).filter(t => tagFilters[t] === 'exclude');
-
-            // Check Excludes
             if (b.tags && b.tags.some(t => excludedTags.includes(t))) return false;
-
-            // Check Includes
             if (includedTags.length > 0) {
                 if (!b.tags) return false;
-                // Check if ALL included tags are present in book
                 const hasAllIncludes = includedTags.every(inc => b.tags.includes(inc));
                 if (!hasAllIncludes) return false;
             }
-
             return true;
         });
     }, [books, searchQuery, tagFilters]);
 
-    // TAG TOGGLE LOGIC: Neutral -> Include -> Exclude -> Neutral
     const toggleTag = (tag) => {
         setTagFilters(prev => {
             const current = prev[tag];
@@ -127,7 +112,6 @@ function App() {
         else setAuthError("Password Salah");
     };
 
-    // ... Navigation Handlers (Same as before) ...
     const handleToggleHiddenZone = async () => {
         const hasPass = await HasHiddenZonePassword();
         const msg = hasPass ? "Masukkan Password Zona Rahasia:" : "SET PASSWORD BARU untuk Zona Rahasia:";
@@ -144,7 +128,7 @@ function App() {
             if (!pass) return;
             const valid = await VerifyBookPassword(book.name, pass);
             if (!valid) { alert("Password Salah!"); return; }
-            await fetchBooks(); // Refresh cover unmask
+            await fetchBooks();
         }
         setIsLoading(true); setCurrentBookObj(book);
         try {
@@ -169,7 +153,6 @@ function App() {
         else { setSearchQuery(''); setTagFilters({}); }
     };
 
-    // ... CRUD (Add, Update, Delete) ...
     const handleAddBook = async () => {
         const name = prompt("Nama Buku Baru:"); if(!name) return;
         const path = await SelectFolder(); if(!path) return;
@@ -181,7 +164,6 @@ function App() {
     const handleUpdate = async (e, name) => { e.stopPropagation(); const path = await SelectFolder(); if(!path) return; setIsLoading(true); await CreateBook(name, path, true); await fetchBooks(); setIsLoading(false); };
     const handleDelete = async (e, name) => { e.stopPropagation(); if(confirm(`Hapus ${name}?`)) { setIsLoading(true); await DeleteBook(name); await fetchBooks(); setIsLoading(false); } };
 
-    // ... Meta Editing ...
     const openEditModal = (e, book) => {
         e.stopPropagation(); setEditingBook(book); setEditNameInput(book.name);
         setEditDescInput(book.description || ''); setEditTagsInput(book.tags ? book.tags.join(', ') : '');
@@ -191,6 +173,7 @@ function App() {
         e.preventDefault(); if(!editingBook) return; setIsLoading(true);
         try {
             const tagsArray = editTagsInput.split(',').map(t => t.trim()).filter(t => t !== "");
+            // FIX: Using correct variable editDescInput and editMaskCover
             await UpdateBookMetadata(editingBook.name, editNameInput, editDescInput, tagsArray, editIsHidden, editMaskCover);
             if (editLockPass) { await LockBook(editNameInput, editLockPass); }
             setEditingBook(null); await fetchBooks();
@@ -203,7 +186,6 @@ function App() {
         try { await SetBookCover(currentBookObj.name, targetFile); alert("Cover Updated!"); } catch (e) { alert(e); }
     };
 
-    // ... Password Management ...
     const handleChangeMasterPass = async () => { if (!settingsPassInput) return; await SetMasterPassword(settingsPassInput); alert("Master OK"); setSettingsPassInput(''); }
     const handleChangeHiddenPass = async () => { if (!settingsPassInput) return; await SetHiddenZonePassword(settingsPassInput); alert("Hidden OK"); setSettingsPassInput(''); }
 
@@ -212,7 +194,6 @@ function App() {
     const renderSidebar = () => (
         <div className="sidebar">
             <div className="app-logo">📚 GalleryVault</div>
-            
             <div className="nav-menu-top">
                 {view === 'library' && (
                     <div className="search-container">
@@ -232,13 +213,9 @@ function App() {
                     <div className="tags-header">FILTERS</div>
                     <div className="tags-scroll">
                         {uniqueTags.map(tag => {
-                            const status = tagFilters[tag]; // undefined | 'include' | 'exclude'
+                            const status = tagFilters[tag];
                             return (
-                                <button 
-                                    key={tag} 
-                                    className={`nav-item tag-item ${status || ''}`} 
-                                    onClick={() => toggleTag(tag)}
-                                >
+                                <button key={tag} className={`nav-item tag-item ${status || ''}`} onClick={() => toggleTag(tag)}>
                                     <div style={{display:'flex', alignItems:'center', gap:5}}>
                                         <TagIcon /> <span>{tag}</span>
                                     </div>
@@ -380,14 +357,13 @@ function App() {
         );
     };
 
-    // --- MAIN RENDER ---
+    // FIX LOGIN VISIBILITY: Explicitly return Login if !isAuthenticated
     if (hasPasswordSetup === null) return <div className="loading-overlay">Loading...</div>;
     
-    // FIX LOGIN MISSING: Explicit return if not authenticated
     if (!isAuthenticated) return (
         <div className="login-container">
             <div className="login-box">
-                <h1>{hasPasswordSetup ? "Gallery Locked" : "Setup Password"}</h1>
+                <h1>{hasPasswordSetup ? "GalleryVault" : "Setup Password"}</h1>
                 <form onSubmit={handleLogin}>
                     <input type="password" className="auth-input" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)} autoFocus placeholder="Passphrase"/>
                     <button className="auth-button">Unlock</button>
