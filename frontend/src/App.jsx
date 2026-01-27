@@ -3,10 +3,8 @@ import {
     CreateBook, GetBooks, GetChapters, GetImagesInChapter, SelectFolder, HasPassword,
     SetMasterPassword, VerifyPassword, DeleteBook, UpdateBookMetadata, SetBookCover,
     LockBook, UnlockBook, VerifyBookPassword, ToggleHiddenZone, IsHiddenZoneActive, LockHiddenZone,
-    HasHiddenZonePassword, SetHiddenZonePassword, BatchImportBooks, ToggleBookFavorite // [NEW] Import ToggleBookFavorite
+    HasHiddenZonePassword, SetHiddenZonePassword, BatchImportBooks, ToggleBookFavorite
 } from '../wailsjs/go/main/App';
-// Hapus OnFileDrop jika tidak dipakai, tapi biarkan BatchImportBooks karena dipakai di handleAddBook
-import { OnFileDrop } from '../wailsjs/runtime/runtime'; 
 import './App.css';
 import Reader from './components/Reader';
 
@@ -26,8 +24,8 @@ const EyeOffIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" heig
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
 const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
 const CrossIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
-// [NEW] Heart Icon
 const HeartIcon = ({ filled }) => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>;
+const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 
 const BookHero = ({ book }) => {
     if (!book) return null;
@@ -51,10 +49,10 @@ const BookHero = ({ book }) => {
 };
 
 function App() {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [hasPasswordSetup, setHasPasswordSetup] = useState(null);
     const [passwordInput, setPasswordInput] = useState('');
-    const [authError, setAuthError] = useState('');
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     const [view, setView] = useState('library');
     const [books, setBooks] = useState([]);
@@ -69,13 +67,11 @@ function App() {
     const [imageCacheBuster, setImageCacheBuster] = useState(Date.now());
     const [hiddenZoneActive, setHiddenZoneActive] = useState(false);
 
-    // [NEW] Sorting State
-    const [sortBy, setSortBy] = useState('name'); // 'name' | 'recent'
+    const [sortBy, setSortBy] = useState('name'); 
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
     const authRef = useRef(false);
 
-    // Edit Modal State
     const [editingBook, setEditingBook] = useState(null);
     const [editNameInput, setEditNameInput] = useState('');
     const [editDescInput, setEditDescInput] = useState('');
@@ -87,8 +83,14 @@ function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [settingsPassInput, setSettingsPassInput] = useState('');
 
-    useEffect(() => { authRef.current = isAuthenticated; }, [isAuthenticated]);
-    useEffect(() => { const check = async () => setHasPasswordSetup(await HasPassword()); check(); }, []);
+    useEffect(() => { 
+        const check = async () => {
+            const hasPass = await HasPassword();
+            setHasPasswordSetup(hasPass);
+            if (!hasPass) setIsAdmin(true);
+        }; 
+        check(); 
+    }, []);
 
     // --- HANDLERS ---
     const handleAddBook = async () => {
@@ -114,7 +116,6 @@ function App() {
     };
 
     const fetchBooks = useCallback(async () => {
-        if (!isAuthenticated) return;
         setIsLoading(true);
         try {
             const res = await GetBooks();
@@ -124,16 +125,14 @@ function App() {
             setImageCacheBuster(Date.now());
         } catch (e) { console.error(e); }
         setIsLoading(false);
-    }, [isAuthenticated]);
+    }, []);
 
     useEffect(() => { fetchBooks(); }, [fetchBooks]);
 
-    // [NEW] Toggle Favorite
     const handleToggleFavorite = async (e, bookName) => {
         e.stopPropagation();
         try {
             await ToggleBookFavorite(bookName);
-            // Optimistic update
             setBooks(prev => prev.map(b => b.name === bookName ? {...b, is_favorite: !b.is_favorite} : b));
         } catch (err) { alert(err); }
     };
@@ -144,10 +143,9 @@ function App() {
         return Array.from(tags).sort();
     }, [books]);
 
-    // [UPDATED] Filter + Sort Logic
     const filteredBooks = useMemo(() => {
         let result = books.filter(b => {
-            if (showFavoritesOnly && !b.is_favorite) return false; // Filter Favorit
+            if (showFavoritesOnly && !b.is_favorite) return false;
             if (searchQuery && !b.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
             const includedTags = Object.keys(tagFilters).filter(t => tagFilters[t] === 'include');
             const excludedTags = Object.keys(tagFilters).filter(t => tagFilters[t] === 'exclude');
@@ -160,12 +158,11 @@ function App() {
             return true;
         });
 
-        // Sorting
         return result.sort((a, b) => {
             if (sortBy === 'recent') {
-                return (b.last_read_time || 0) - (a.last_read_time || 0); // Descending (Baru -> Lama)
+                return (b.last_read_time || 0) - (a.last_read_time || 0);
             }
-            return a.name.localeCompare(b.name); // Default A-Z
+            return a.name.localeCompare(b.name);
         });
     }, [books, searchQuery, tagFilters, sortBy, showFavoritesOnly]);
 
@@ -180,8 +177,39 @@ function App() {
         });
     };
 
-    const handleLogin = async (e) => { e.preventDefault(); if (hasPasswordSetup ? await VerifyPassword(passwordInput) : await SetMasterPassword(passwordInput)) { setIsAuthenticated(true); setHasPasswordSetup(true); setPasswordInput(''); } else setAuthError("Password Salah"); };
-    const handleToggleHiddenZone = async () => { const pass = prompt("Password Zona Rahasia:"); if(!pass) return; if(await ToggleHiddenZone(pass)) fetchBooks(); else alert("Salah!"); };
+    const handleAdminLogin = async (e) => {
+        e.preventDefault();
+        if (!hasPasswordSetup) {
+            await SetMasterPassword(passwordInput);
+            setHasPasswordSetup(true);
+            setIsAdmin(true);
+            setPasswordInput('');
+            setShowLoginModal(false);
+            return;
+        }
+        
+        const ok = await VerifyPassword(passwordInput);
+        if (ok) { 
+            setIsAdmin(true); 
+            setPasswordInput(''); 
+            setShowLoginModal(false); 
+        } else {
+            alert("Password Salah!");
+        }
+    };
+
+    // [UPDATED] Logout akan otomatis mengunci Hidden Zone
+    const handleLogout = () => {
+        setIsAdmin(false);
+        if(hiddenZoneActive) handleLockHiddenZone();
+    };
+
+    const handleToggleHiddenZone = async () => { 
+        const pass = prompt("Password Zona Rahasia:"); 
+        if(!pass) return; 
+        if(await ToggleHiddenZone(pass)) fetchBooks(); 
+        else alert("Salah!"); 
+    };
     const handleLockHiddenZone = async () => { await LockHiddenZone(); await fetchBooks(); };
     
     const handleOpenBook = async (book) => {
@@ -208,7 +236,7 @@ function App() {
 
     const handleBack = () => {
         if (view === 'gallery') {
-            fetchBooks(); // Refresh progress
+            fetchBooks();
             if (chapters.length > 0) { setView('chapters'); setImageFilenames([]); } 
             else { setView('library'); setCurrentBookObj(null); }
         } else if (view === 'chapters') { setView('library'); setCurrentBookObj(null); fetchBooks(); } 
@@ -238,12 +266,16 @@ function App() {
                     <HomeIcon /> Library
                 </button>
                 
-                {/* [NEW] Filter Favorit */}
                 <button className={`nav-item ${showFavoritesOnly ? 'active' : ''}`} onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}>
                     <HeartIcon filled={true}/> Favorites
                 </button>
 
-                <button className="nav-item" onClick={() => setShowSettings(true)}><SettingsIcon /> Passwords</button>
+                {/* Settings Hanya Muncul Jika Hidden Zone Aktif */}
+                {hiddenZoneActive && (
+                    <button className="nav-item" onClick={() => setShowSettings(true)} style={{color: '#f38ba8'}}>
+                        <SettingsIcon /> Passwords
+                    </button>
+                )}
             </div>
 
             {uniqueTags.length > 0 && view === 'library' && (
@@ -260,8 +292,23 @@ function App() {
                 </div>
             )}
             <div className="nav-menu-bottom">
-                <button className={`nav-item ${hiddenZoneActive ? 'active' : ''}`} onClick={hiddenZoneActive ? handleLockHiddenZone : handleToggleHiddenZone} style={{color: hiddenZoneActive ? '#f38ba8' : '#6c7086'}}>{hiddenZoneActive ? <><UnlockIcon /> Exit Hidden</> : <><EyeIcon /> Hidden Zone</>}</button>
-                <button className="nav-item" onClick={() => setIsAuthenticated(false)}><LockIcon /> Lock App</button>
+                {/* [MODIFIED] Tombol Hidden Zone HANYA muncul jika isAdmin */}
+                {isAdmin && (
+                    <button className={`nav-item ${hiddenZoneActive ? 'active' : ''}`} onClick={hiddenZoneActive ? handleLockHiddenZone : handleToggleHiddenZone} style={{color: hiddenZoneActive ? '#f38ba8' : '#6c7086'}}>
+                        {hiddenZoneActive ? <><UnlockIcon /> Exit Hidden</> : <><EyeIcon /> Hidden Zone</>}
+                    </button>
+                )}
+                
+                {/* Tombol Login/Logout Admin */}
+                {isAdmin ? (
+                    <button className="nav-item" onClick={handleLogout} style={{color: '#a6e3a1'}}>
+                        <UserIcon /> Admin On
+                    </button>
+                ) : (
+                    <button className="nav-item" onClick={() => setShowLoginModal(true)}>
+                        <LockIcon /> Admin Login
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -282,15 +329,9 @@ function App() {
 
     const renderLibraryView = () => (
         <div className="content-scroll-area">
-            {/* [NEW] Header Sort */}
             <div className="library-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:15}}>
                 <div style={{color:'#a6adc8', fontSize:'0.9rem'}}>{filteredBooks.length} Buku ditemukan</div>
-                <select 
-                    className="auth-input compact" 
-                    style={{ width: 'auto', minWidth: '200px', cursor: 'pointer' }} 
-                    value={sortBy} 
-                    onChange={(e) => setSortBy(e.target.value)}
-                >
+                <select className="auth-input compact" style={{width:'auto', minWidth:'200px', cursor:'pointer'}} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                     <option value="name">🔤 Nama (A-Z)</option>
                     <option value="recent">🕒 Terbaru Dibaca</option>
                 </select>
@@ -302,64 +343,115 @@ function App() {
                         <div className="book-cover" onClick={() => handleOpenBook(b)}>
                             {b.cover ? <img src={b.cover} alt="cover"/> : <div className="book-cover-placeholder" style={{flexDirection:'column'}}>{b.mask_cover ? <><EyeOffIcon style={{width:40,height:40}}/><span style={{fontSize:12, marginTop:10}}>Cover Hidden</span></> : "📚"}</div>}
                             <div className="book-info-overlay"><div className="book-title">{b.name.replace(/_/g, ' ')}</div></div>
-                            
-                            {/* STATUS INDICATORS */}
                             <div style={{position:'absolute', top:5, left:5, display:'flex', gap:5}}>
                                 {b.is_locked && <div className="indicator locked"><LockIcon style={{width:14, height:14}} /></div>}
                                 {b.is_hidden && <div className="indicator hidden"><EyeOffIcon style={{width:14, height:14}} /></div>}
                             </div>
-
-                            {/* [NEW] FAVORITE BUTTON */}
-                            <div 
-                                className={`fav-btn ${b.is_favorite ? 'active' : ''}`}
-                                onClick={(e) => handleToggleFavorite(e, b.name)}
-                                style={{
-                                    position:'absolute', top:5, right:5, 
-                                    color: b.is_favorite ? '#f38ba8' : 'rgba(255,255,255,0.5)',
-                                    cursor:'pointer', zIndex:10
-                                }}
-                            >
+                            <div className={`fav-btn ${b.is_favorite ? 'active' : ''}`} onClick={(e) => handleToggleFavorite(e, b.name)} style={{position:'absolute', top:5, right:5, color: b.is_favorite ? '#f38ba8' : 'rgba(255,255,255,0.5)', cursor:'pointer', zIndex:10}}>
                                 <HeartIcon filled={b.is_favorite} />
                             </div>
-
-                            {/* PROGRESS BADGE */}
-                            {b.last_page > 0 && (
-                                <div className="indicator" style={{
-                                    top: 'auto', bottom: 65, right: 10, 
-                                    background: 'var(--accent)', color: '#1e1e2e', 
-                                    fontSize: '0.7rem', fontWeight: 'bold', 
-                                    borderRadius: '4px', padding: '2px 6px'
-                                }}>
-                                    PAGE {b.last_page + 1}
-                                </div>
-                            )}
-
-                            {b.tags && b.tags.length > 0 && (
-                                <div className="tag-badges">{b.tags.slice(0, 3).map(t => <span key={t}>{t}</span>)}</div>
-                            )}
+                            {b.last_page > 0 && <div className="indicator" style={{top: 'auto', bottom: 65, right: 10, background: 'var(--accent)', color: '#1e1e2e', fontSize: '0.7rem', fontWeight: 'bold', borderRadius: '4px', padding: '2px 6px'}}>PAGE {b.last_page + 1}</div>}
+                            {b.tags && b.tags.length > 0 && (<div className="tag-badges">{b.tags.slice(0, 3).map(t => <span key={t}>{t}</span>)}</div>)}
                         </div>
-                        <div className="book-actions">
-                            <button className="action-btn" onClick={(e)=>handleUpdate(e, b.name)}><SyncIcon/></button>
-                            <button className="action-btn" onClick={(e)=>openEditModal(e, b)}><EditIcon/></button>
-                            <button className="action-btn danger" onClick={(e)=>handleDelete(e, b.name)}><TrashIcon/></button>
-                        </div>
+                        
+                        {/* Button Action hanya muncul jika Admin */}
+                        {isAdmin && (
+                            <div className="book-actions">
+                                <button className="action-btn" onClick={(e)=>handleUpdate(e, b.name)}><SyncIcon/></button>
+                                <button className="action-btn" onClick={(e)=>openEditModal(e, b)}><EditIcon/></button>
+                                <button className="action-btn danger" onClick={(e)=>handleDelete(e, b.name)}><TrashIcon/></button>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
-            <button className="fab" onClick={handleAddBook}>+</button>
+            {isAdmin && <button className="fab" onClick={handleAddBook}>+</button>}
         </div>
     );
 
     const renderGalleryView = () => (
-        <Reader images={imageFilenames} bookName={currentBookObj?.name} chapterName={currentChapter} imageCacheBuster={imageCacheBuster} initialPage={currentBookObj?.last_page || 0} onBack={handleBack} onSetCover={handleReaderSetCover} />
+        <Reader 
+            images={imageFilenames} 
+            bookName={currentBookObj?.name} 
+            chapterName={currentChapter} 
+            imageCacheBuster={imageCacheBuster} 
+            initialPage={currentBookObj?.last_page || 0} 
+            onBack={handleBack} 
+            onSetCover={handleReaderSetCover}
+            isAdmin={isAdmin} // [NEW] Kirim status Admin ke Reader
+        />
     );
 
-    const renderEditModal = () => { if(!editingBook) return null; return ( <div className="modal-overlay"> <div className="login-box" onClick={e => e.stopPropagation()} style={{textAlign:'left', width: 500}}> <h2 style={{marginTop:0, color:'#89b4fa'}}>Edit Info</h2> <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:15}}> <div><label className="input-label">Judul</label><input name="editName" className="auth-input compact" value={editNameInput} onChange={e => setEditNameInput(e.target.value)} /></div> <div><label className="input-label">Tags</label><input name="editTags" className="auth-input compact" value={editTagsInput} onChange={e => setEditTagsInput(e.target.value)} /></div> </div> <label className="input-label">Deskripsi</label> <textarea name="editDesc" className="auth-input compact" style={{height:80, resize:'vertical'}} value={editDescInput} onChange={e => setEditDescInput(e.target.value)} /> <div className="security-section"> <label className="input-label" style={{color:'#f38ba8'}}>Keamanan</label> <input name="editPass" className="auth-input compact" type="password" value={editLockPass} onChange={e => setEditLockPass(e.target.value)} placeholder="Set Password Baru"/> <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}> <div className="checkbox-row"><input name="hideCheck" type="checkbox" id="hideCheck" checked={editIsHidden} onChange={e => setEditIsHidden(e.target.checked)} /><label htmlFor="hideCheck">Hidden Book</label></div> <div className="checkbox-row"><input name="maskCheck" type="checkbox" id="maskCheck" checked={editMaskCover} onChange={e => setEditMaskCover(e.target.checked)} /><label htmlFor="maskCheck">Mask Cover</label></div> </div> {editingBook.is_locked && <button onClick={handleUnlockAction} className="unlock-btn">🔓 Hapus Password</button>} </div> <div style={{display:'flex', gap:10, marginTop:20}}> <button className="auth-button" onClick={saveMetadata}>Simpan</button> <button className="auth-button secondary" onClick={() => setEditingBook(null)}>Batal</button> </div> </div> </div> ); };
-    const renderSettingsModal = () => { if (!showSettings) return null; return ( <div className="modal-overlay"> <div className="login-box" onClick={e => e.stopPropagation()} style={{textAlign:'left'}}> <h2 style={{marginTop:0, color:'#89b4fa'}}>Password Management</h2> <input name="settingsPass" className="auth-input" type="password" value={settingsPassInput} onChange={e => setSettingsPassInput(e.target.value)} placeholder="Password Baru" /> <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:10}}> <button className="auth-button" onClick={handleChangeMasterPass}>Ubah Master Password</button> <button className="auth-button" style={{background:'#f38ba8', color:'#1e1e2e'}} onClick={handleChangeHiddenPass}>Ubah Hidden Zone Password</button> </div> <button className="auth-button secondary" style={{marginTop:20}} onClick={() => {setShowSettings(false); setSettingsPassInput('');}}>Tutup</button> </div> </div> ); };
+    const renderEditModal = () => { 
+        if(!editingBook) return null; 
+        return ( 
+            <div className="modal-overlay"> 
+                <div className="login-box" onClick={e => e.stopPropagation()} style={{textAlign:'left', width: 500}}> 
+                    <h2 style={{marginTop:0, color:'#89b4fa'}}>Edit Info</h2> 
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:15}}> 
+                        <div><label className="input-label">Judul</label><input name="editName" className="auth-input compact" value={editNameInput} onChange={e => setEditNameInput(e.target.value)} /></div> 
+                        <div><label className="input-label">Tags</label><input name="editTags" className="auth-input compact" value={editTagsInput} onChange={e => setEditTagsInput(e.target.value)} /></div> 
+                    </div> 
+                    <label className="input-label">Deskripsi</label> 
+                    <textarea name="editDesc" className="auth-input compact" style={{height:80, resize:'vertical'}} value={editDescInput} onChange={e => setEditDescInput(e.target.value)} /> 
+                    
+                    {/* Keamanan hanya muncul jika Hidden Zone Aktif */}
+                    {hiddenZoneActive && (
+                        <div className="security-section"> 
+                            <label className="input-label" style={{color:'#f38ba8'}}>Keamanan (Hidden Zone Only)</label> 
+                            <input name="editPass" className="auth-input compact" type="password" value={editLockPass} onChange={e => setEditLockPass(e.target.value)} placeholder="Set Password Buku Baru"/> 
+                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:10}}> 
+                                <div className="checkbox-row"><input name="hideCheck" type="checkbox" id="hideCheck" checked={editIsHidden} onChange={e => setEditIsHidden(e.target.checked)} /><label htmlFor="hideCheck">Hidden Book</label></div> 
+                                <div className="checkbox-row"><input name="maskCheck" type="checkbox" id="maskCheck" checked={editMaskCover} onChange={e => setEditMaskCover(e.target.checked)} /><label htmlFor="maskCheck">Mask Cover</label></div> 
+                            </div> 
+                            {editingBook.is_locked && <button onClick={handleUnlockAction} className="unlock-btn">🔓 Hapus Password</button>} 
+                        </div> 
+                    )}
+
+                    <div style={{display:'flex', gap:10, marginTop:20}}> 
+                        <button className="auth-button" onClick={saveMetadata}>Simpan</button> 
+                        <button className="auth-button secondary" onClick={() => setEditingBook(null)}>Batal</button> 
+                    </div> 
+                </div> 
+            </div> 
+        ); 
+    };
+
+    const renderSettingsModal = () => { 
+        if (!showSettings) return null; 
+        return ( 
+            <div className="modal-overlay"> 
+                <div className="login-box" onClick={e => e.stopPropagation()} style={{textAlign:'left'}}> 
+                    <h2 style={{marginTop:0, color:'#89b4fa'}}>Password Management</h2> 
+                    <input name="settingsPass" className="auth-input" type="password" value={settingsPassInput} onChange={e => setSettingsPassInput(e.target.value)} placeholder="Password Baru" /> 
+                    <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:10}}> 
+                        <button className="auth-button" onClick={handleChangeMasterPass}>Ubah Master Password</button> 
+                        <button className="auth-button" style={{background:'#f38ba8', color:'#1e1e2e'}} onClick={handleChangeHiddenPass}>Ubah Hidden Zone Password</button> 
+                    </div> 
+                    <button className="auth-button secondary" style={{marginTop:20}} onClick={() => {setShowSettings(false); setSettingsPassInput('');}}>Tutup</button> 
+                </div> 
+            </div> 
+        ); 
+    };
+
+    const renderLoginModal = () => {
+        if (!showLoginModal) return null;
+        return (
+            <div className="modal-overlay" onClick={() => setShowLoginModal(false)}>
+                <div className="login-box" onClick={e => e.stopPropagation()}>
+                    <h2 style={{marginTop:0}}>Admin Access</h2>
+                    <p style={{marginBottom:15, color:'#a6adc8'}}>Masukkan Master Password untuk melakukan perubahan.</p>
+                    <form onSubmit={handleAdminLogin}>
+                        <input name="loginPass" type="password" className="auth-input" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)} autoFocus placeholder="Passphrase"/>
+                        <button className="auth-button" style={{marginTop:10}}>Unlock</button>
+                    </form>
+                </div>
+            </div>
+        );
+    };
 
     if (hasPasswordSetup === null) return <div className="loading-overlay">Loading...</div>;
-    if (!isAuthenticated) return ( <div className="login-container"> <div className="login-box"> <h1>{hasPasswordSetup ? "GalleryVault" : "Setup Password"}</h1> <form onSubmit={handleLogin}> <input name="loginPass" type="password" className="auth-input" value={passwordInput} onChange={e=>setPasswordInput(e.target.value)} autoFocus placeholder="Passphrase"/> <button className="auth-button">Unlock</button> </form> {authError && <p className="auth-error">{authError}</p>} </div> </div> );
-
+    
     return (
         <div id="App">
             {isLoading && <div className="loading-overlay"><div></div><p>{statusMessage || 'Processing...'}</p></div>}
@@ -375,6 +467,7 @@ function App() {
             </div>
             {renderEditModal()}
             {renderSettingsModal()}
+            {renderLoginModal()}
         </div>
     );
 }

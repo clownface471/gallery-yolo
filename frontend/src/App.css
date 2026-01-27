@@ -513,3 +513,35 @@ body {
   color: #cdd6f4;
   padding: 10px;
 }
+
+/* --- HORIZONTAL SCROLL (MANGA MODE) --- */
+.scroll-x-container {
+  display: flex;
+  flex-direction: row-reverse; /* RTL: Scroll dari kanan ke kiri */
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  width: 100%;
+  align-items: center; /* Center gambar secara vertikal */
+  scroll-behavior: smooth;
+  background-color: #11111b; /* Background lebih gelap */
+}
+
+.scroll-x-page {
+  height: 100%; /* Full height */
+  width: auto;  /* Lebar menyesuaikan rasio */
+  max-width: 100vw; /* Jangan melebihi lebar layar */
+  object-fit: contain;
+  flex-shrink: 0; /* Jangan menyusut */
+  margin: 0 5px; /* Jarak antar halaman */
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* Scrollbar styling untuk horizontal */
+.scroll-x-container::-webkit-scrollbar {
+  height: 8px;
+}
+.scroll-x-container::-webkit-scrollbar-thumb {
+  background-color: #45475a;
+  border-radius: 4px;
+}
