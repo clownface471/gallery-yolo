@@ -1,286 +1,273 @@
-import { useState, useEffect, useRef } from 'react';
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UpdateBookProgress } from '../../wailsjs/go/main/App';
+import './Reader.css';
 
-// --- ICONS (Tetap Sama) ---
-const ScrollIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12" y2="6"></line><line x1="9" y1="15" x2="12" y2="18"></line><line x1="15" y1="15" x2="12" y2="18"></line></svg>;
-const ScrollXIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect><line x1="6" y1="12" x2="18" y2="12"></line><polyline points="15 9 18 12 15 15"></polyline></svg>;
-const PageIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="4" width="6" height="16"></rect></svg>;
-const GridIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>;
-const CoverIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 22h-16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2z"></path><path d="m9 12-2 3h10l-4-5-4 5z"></path></svg>;
-const ZoomInIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>;
-const ZoomOutIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>;
-const ResetIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>;
-const ToolsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
-const SpreadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>;
+// --- KOMPONEN PINTAR: LAZY IMAGE ---
+// Hanya me-load gambar jika masuk ke viewport (layar)
+const LazyImage = ({ src, alt, index, onInView }) => {
+    const [isVisible, setIsVisible] = useState(false);
+    const imgRef = useRef();
 
-// [UPDATE] Tambahkan prop 'isAdmin'
-const Reader = ({ images, bookName, chapterName, imageCacheBuster, initialPage = 0, onBack, onSetCover, isAdmin }) => {
-    const [mode, setMode] = useState('masonry'); 
-    const [currentIndex, setCurrentIndex] = useState(0);
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                    if (onInView) onInView(index); // Lapor ke induk: "Aku lagi dilihat nih"
+                    observer.disconnect(); // Stop memantau setelah load (hemat resource)
+                }
+            },
+            { rootMargin: '800px 0px' } // Load 800px sebelum muncul di layar (Buffer)
+        );
+
+        if (imgRef.current) observer.observe(imgRef.current);
+        return () => observer.disconnect();
+    }, [index, onInView]);
+
+    return (
+        <div ref={imgRef} className="image-container" style={{ minHeight: isVisible ? 'auto' : '1000px' }}>
+            {isVisible ? (
+                <img src={src} alt={alt} loading="lazy" />
+            ) : (
+                <div className="loading-placeholder">
+                    <span>Halaman {index + 1}</span>
+                    <div className="spinner"></div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- MAIN READER COMPONENT ---
+const Reader = ({ 
+    images, bookName, chapterName, 
+    chapters = [], 
+    onChapterChange, 
+    imageCacheBuster, initialPage, onBack, onSetCover, isAdmin 
+}) => {
+    // [UPDATE] Load preference dari localStorage, default 'webtoon'
+    const [readMode, setReadMode] = useState(localStorage.getItem('gv_readMode') || 'webtoon'); 
+    
+    // State Halaman
+    const [currentIndex, setCurrentIndex] = useState(initialPage || 0);
     const [showControls, setShowControls] = useState(true);
-    const [showZoomTools, setShowZoomTools] = useState(false);
-    const [isSpread, setIsSpread] = useState(false);
+    
+    // Ref untuk Debounce Auto-Save
+    const saveTimeoutRef = useRef(null);
 
-    const scrollContainerRef = useRef(null);
-
-    const alignSpreadIndex = (idx) => {
-        if (idx === 0) return 0;
-        return idx % 2 === 0 ? idx - 1 : idx;
-    };
-
+    // [BARU] Simpan preferensi mode baca setiap kali berubah
     useEffect(() => {
-        if (initialPage > 0) {
-            setMode('paged');
-            setCurrentIndex(initialPage);
-        } else {
-            setMode('masonry');
-            setCurrentIndex(0);
-        }
-        setShowZoomTools(false); 
-        setIsSpread(false);
-    }, [bookName, chapterName, initialPage]);
+        localStorage.setItem('gv_readMode', readMode);
+    }, [readMode]);
 
+    // [BARU] Logic Auto-Save ke Database (Debounce 1 detik)
     useEffect(() => {
-        if (isSpread && currentIndex > 0) {
-            if (currentIndex % 2 === 0) {
-                setCurrentIndex(prev => prev - 1);
-            }
-        }
-    }, [isSpread]);
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
-    useEffect(() => {
-        if (bookName && currentIndex >= 0) {
-            const timer = setTimeout(() => {
+        saveTimeoutRef.current = setTimeout(() => {
+            if (bookName) {
                 UpdateBookProgress(bookName, currentIndex);
-            }, 1000); 
-            return () => clearTimeout(timer);
-        }
+            }
+        }, 1000);
+
+        return () => clearTimeout(saveTimeoutRef.current);
     }, [currentIndex, bookName]);
 
+    // Auto-hide controls saat idle
     useEffect(() => {
-        let timeout;
+        let timer;
         const resetTimer = () => {
             setShowControls(true);
-            clearTimeout(timeout);
-            timeout = setTimeout(() => setShowControls(false), 3000);
+            clearTimeout(timer);
+            timer = setTimeout(() => setShowControls(false), 3000);
         };
         window.addEventListener('mousemove', resetTimer);
+        window.addEventListener('keydown', resetTimer);
+        resetTimer();
         return () => {
             window.removeEventListener('mousemove', resetTimer);
-            clearTimeout(timeout);
+            window.removeEventListener('keydown', resetTimer);
+            clearTimeout(timer);
         };
     }, []);
 
+    // --- NAVIGATION LOGIC ---
+    const handleNextChapter = () => {
+        if (!chapters.length || !onChapterChange) return;
+        const currentIdx = chapters.indexOf(chapterName);
+        if (currentIdx > -1 && currentIdx < chapters.length - 1) {
+            onChapterChange(chapters[currentIdx + 1]);
+            setCurrentIndex(0); // Reset ke hal 1 di chapter baru
+            window.scrollTo(0,0);
+        } else {
+            alert("Ini adalah chapter terakhir.");
+        }
+    };
+
+    const handlePrevChapter = () => {
+        if (!chapters.length || !onChapterChange) return;
+        const currentIdx = chapters.indexOf(chapterName);
+        if (currentIdx > 0) {
+            onChapterChange(chapters[currentIdx - 1]);
+            setCurrentIndex(0); 
+            window.scrollTo(0,0);
+        }
+    };
+
+    const changePage = (delta) => {
+        const next = currentIndex + delta;
+        if (next >= 0 && next < images.length) {
+            setCurrentIndex(next);
+            window.scrollTo(0, 0);
+        } else if (next >= images.length) {
+            // Jika di halaman terakhir dan tekan Next -> Tawarkan Chapter Selanjutnya
+            if (confirm("Ganti ke chapter selanjutnya?")) handleNextChapter();
+        }
+    };
+
+    // Keyboard Shortcuts
     useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (mode === 'paged') {
-                if (e.key === 'ArrowRight') goNext();
-                if (e.key === 'ArrowLeft') goPrev();
-            } else if (mode === 'scroll-x') {
-                const container = document.querySelector('.scroll-x-container');
-                if (container) {
-                    if (e.key === 'ArrowLeft') container.scrollBy({ left: 300, behavior: 'smooth' }); 
-                    if (e.key === 'ArrowRight') container.scrollBy({ left: -300, behavior: 'smooth' }); 
-                }
-            } else if (e.key === 'Escape') {
-                if (mode === 'paged' || mode === 'webtoon' || mode === 'scroll-x') setMode('masonry');
-                else onBack();
+        const handleKey = (e) => {
+            if (e.key === 'Escape') onBack();
+            
+            // Mode Single Page Navigation
+            if (readMode === 'single') {
+                if (e.key === 'ArrowRight') changePage(1);
+                if (e.key === 'ArrowLeft') changePage(-1);
             }
+
+            // Shortcut Ganti Chapter (Shift + Panah)
+            if (e.shiftKey && e.key === 'ArrowRight') handleNextChapter();
+            if (e.shiftKey && e.key === 'ArrowLeft') handlePrevChapter();
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [mode, currentIndex, images, isSpread]);
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [currentIndex, readMode, chapterName, chapters]); // Dependency penting agar state terbaca update
 
-    const goNext = () => {
-        if (isSpread && currentIndex > 0) {
-            if (currentIndex < images.length - 2) setCurrentIndex(prev => prev + 2);
-            else if (currentIndex < images.length - 1) setCurrentIndex(prev => prev + 1);
-        } else {
-            if (currentIndex < images.length - 1) setCurrentIndex(prev => prev + 1);
+    // Helper URL Gambar
+    const getImageUrl = (filename) => {
+        const safeBook = encodeURIComponent(bookName);
+        const safeFile = encodeURIComponent(filename);
+        
+        let url = `/img/${safeBook}/${safeFile}`;
+        if (chapterName) {
+            const safeChapter = encodeURIComponent(chapterName);
+            url = `/img/${safeBook}/${safeChapter}/${safeFile}`;
+        }
+        return `${url}?t=${imageCacheBuster}`;
+    };
+
+    const handleInView = useCallback((index) => {
+        setCurrentIndex(index);
+    }, []);
+
+    const setAsCover = () => {
+        if(confirm("Jadikan halaman ini sebagai cover buku?")) {
+            onSetCover(images[currentIndex]);
         }
     };
-
-    const goPrev = () => {
-        if (isSpread && currentIndex > 1) {
-            setCurrentIndex(prev => {
-                const newIdx = Math.max(1, prev - 2);
-                return newIdx;
-            }); 
-            if(currentIndex <= 2) setCurrentIndex(0); 
-        } else {
-            if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
-        }
-    };
-
-    const getImgUrl = (filename) => {
-        let url = `/img/${encodeURIComponent(bookName)}`;
-        if (chapterName) url += `/${encodeURIComponent(chapterName)}`;
-        url += `/${encodeURIComponent(filename)}`;
-        return url + `?t=${imageCacheBuster}`;
-    };
-
-    const handleImageClick = (index) => {
-        if (isSpread) {
-            setCurrentIndex(alignSpreadIndex(index));
-        } else {
-            setCurrentIndex(index);
-        }
-        setMode('paged'); 
-    };
-
-    const displayTitle = chapterName 
-        ? `${bookName.replace(/_/g, ' ')} / ${chapterName.replace(/_/g, ' ')}`
-        : bookName.replace(/_/g, ' ');
-
-    const renderMasonry = () => (
-        <div className="reader-scroll-area">
-            <div className="masonry-grid">
-                {images.map((img, i) => (
-                    <div key={i} className="masonry-item" onClick={() => handleImageClick(i)}>
-                        <img src={getImgUrl(img)} alt={`Img ${i}`} loading="lazy"/>
-                        {i === currentIndex && i > 0 && (
-                            <div style={{position: 'absolute', bottom: 0, right: 0, background: 'var(--accent)', color: '#1e1e2e', padding: '4px 8px', fontSize: '0.8rem', fontWeight: 'bold'}}>LAST READ</div>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
-    const renderWebtoon = () => (
-        <div className="webtoon-container" ref={scrollContainerRef}>
-            {images.map((img, i) => (
-                <img key={i} src={getImgUrl(img)} alt={`Page ${i}`} className="webtoon-page" loading="lazy"/>
-            ))}
-            <div className="end-marker">--- END OF CHAPTER ---</div>
-        </div>
-    );
-
-    const renderScrollX = () => (
-        <div className="scroll-x-container">
-            <div style={{minWidth: '50vw'}}></div> 
-            {images.map((img, i) => (
-                <img key={i} src={getImgUrl(img)} alt={`Page ${i}`} className="scroll-x-page" loading="lazy" />
-            ))}
-            <div style={{minWidth: '50vw'}}></div>
-        </div>
-    );
-
-    const renderPaged = () => (
-        <div className="paged-container">
-            <div className="click-zone left" onClick={goPrev} title="Previous"></div>
-            <div className="click-zone right" onClick={goNext} title="Next"></div>
-
-            <TransformWrapper
-                initialScale={1}
-                minScale={1}
-                maxScale={4}
-                centerOnInit={true}
-                wheel={{ step: 0.2 }}
-                key={currentIndex + (isSpread ? '_spread' : '_single')}
-            >
-                {({ zoomIn, zoomOut, resetTransform }) => (
-                    <>
-                        <div className="paged-image-wrapper">
-                            <TransformComponent 
-                                wrapperStyle={{width: "100%", height: "100%"}} 
-                                contentStyle={{
-                                    width: "100%", 
-                                    height: "100%", 
-                                    display: "flex", 
-                                    flexDirection: "row",
-                                    justifyContent: "center", 
-                                    alignItems: "center",
-                                    gap: "0" 
-                                }}
-                            >
-                                {isSpread && currentIndex > 0 && currentIndex < images.length ? (
-                                    <>
-                                        <img 
-                                            src={getImgUrl(images[currentIndex])} 
-                                            alt={`Page ${currentIndex + 1}`} 
-                                            className="paged-image"
-                                            style={{maxWidth: '50%', maxHeight: '100%', width:'auto', height:'auto', objectFit: 'contain', flex: '0 1 auto'}}
-                                        />
-                                        {currentIndex + 1 < images.length && (
-                                            <img 
-                                                src={getImgUrl(images[currentIndex + 1])} 
-                                                alt={`Page ${currentIndex + 2}`} 
-                                                className="paged-image"
-                                                style={{maxWidth: '50%', maxHeight: '100%', width:'auto', height:'auto', objectFit: 'contain', flex: '0 1 auto'}}
-                                            />
-                                        )}
-                                    </>
-                                ) : (
-                                    <img 
-                                        src={getImgUrl(images[currentIndex])} 
-                                        alt={`Page ${currentIndex + 1}`} 
-                                        className="paged-image"
-                                        style={{maxWidth: '100%', maxHeight: '100%', objectFit: 'contain'}}
-                                    />
-                                )}
-                            </TransformComponent>
-                        </div>
-
-                        {showZoomTools && (
-                            <div className={`zoom-controls ${showControls ? 'visible' : ''}`}>
-                                <button onClick={() => zoomIn()} title="Zoom In"><ZoomInIcon/></button>
-                                <button onClick={() => zoomOut()} title="Zoom Out"><ZoomOutIcon/></button>
-                                <button onClick={() => resetTransform()} title="Reset"><ResetIcon/></button>
-                            </div>
-                        )}
-                    </>
-                )}
-            </TransformWrapper>
-
-            <div className="page-counter">
-                {isSpread && currentIndex > 0 
-                    ? `${currentIndex + 1}-${Math.min(currentIndex + 2, images.length)} / ${images.length}` 
-                    : `${currentIndex + 1} / ${images.length}`
-                }
-            </div>
-        </div>
-    );
 
     return (
-        <div className="reader-wrapper">
-            <div className={`reader-controls ${showControls ? 'visible' : ''}`}>
-                <div style={{display:'flex', gap:10, alignItems:'center'}}>
-                    <button className="control-btn back" onClick={onBack}>← Back</button>
-                    <div className="reader-info">{displayTitle}</div>
+        <div className={`reader-wrapper ${showControls ? '' : 'hide-cursor'}`}>
+            
+            {/* --- HEADER CONTROLS --- */}
+            <div className={`reader-header ${showControls ? 'visible' : ''}`}>
+                <div style={{display:'flex', gap:10}}>
+                    <button onClick={onBack} className="reader-btn">← Exit</button>
+                    {chapters.length > 0 && (
+                        <>
+                            <button 
+                                onClick={handlePrevChapter} 
+                                disabled={chapters.indexOf(chapterName) <= 0} 
+                                className="reader-btn"
+                            >
+                                Prev Ch.
+                            </button>
+                            <button 
+                                onClick={handleNextChapter} 
+                                disabled={chapters.indexOf(chapterName) >= chapters.length-1} 
+                                className="reader-btn"
+                            >
+                                Next Ch.
+                            </button>
+                        </>
+                    )}
+                </div>
+                
+                <div className="reader-title">
+                    <span className="book-title">{bookName.replace(/_/g, ' ')}</span>
+                    <span className="chapter-title">{chapterName ? ` / ${chapterName.replace(/_/g, ' ')}` : ''}</span>
+                    <span className="page-info">({currentIndex + 1}/{images.length})</span>
                 </div>
 
-                <div className="mode-switch">
-                    {mode === 'paged' && (
-                        <button className={`control-btn ${isSpread ? 'active' : ''}`} onClick={() => setIsSpread(!isSpread)} style={{marginRight: 10}} title={isSpread ? "1-Pg" : "2-Pg"}>
-                            <SpreadIcon /> {isSpread ? "2-Pg" : "1-Pg"}
-                        </button>
-                    )}
-                    
-                    {/* [UPDATE] Tombol Set Cover hanya muncul jika isAdmin */}
-                    {mode === 'paged' && isAdmin && (
-                        <button className="control-btn" onClick={() => onSetCover(images[currentIndex])} style={{marginRight: 10, borderColor: '#a6e3a1', color: '#a6e3a1'}}>
-                            <CoverIcon /> Set Cover
-                        </button>
-                    )}
-                    
-                    {mode === 'paged' && (
-                        <button className={`control-btn ${showZoomTools ? 'active' : ''}`} onClick={() => setShowZoomTools(!showZoomTools)} style={{marginRight: 15}} title="Toggle Zoom Controls"><ToolsIcon /> Tools</button>
-                    )}
-
-                    <button className={`control-btn ${mode === 'masonry' ? 'active' : ''}`} onClick={() => setMode('masonry')} title="Grid View"><GridIcon /></button>
-                    <button className={`control-btn ${mode === 'scroll-x' ? 'active' : ''}`} onClick={() => setMode('scroll-x')} title="Side Scroll (RTL)"><ScrollXIcon /></button>
-                    <button className={`control-btn ${mode === 'webtoon' ? 'active' : ''}`} onClick={() => setMode('webtoon')} title="Webtoon (Vertical)"><ScrollIcon /></button>
-                    <button className={`control-btn ${mode === 'paged' ? 'active' : ''}`} onClick={() => setMode('paged')} title="Paged View"><PageIcon /></button>
+                <div className="reader-actions">
+                    <select value={readMode} onChange={(e) => setReadMode(e.target.value)} className="mode-select">
+                        <option value="webtoon">Webtoon Mode</option>
+                        <option value="single">Single Page Mode</option>
+                    </select>
+                    {isAdmin && <button onClick={setAsCover} className="reader-btn">★ Cover</button>}
                 </div>
             </div>
 
-            <div className="reader-content">
-                {mode === 'masonry' && renderMasonry()}
-                {mode === 'webtoon' && renderWebtoon()}
-                {mode === 'scroll-x' && renderScrollX()}
-                {mode === 'paged' && renderPaged()}
+            {/* --- CONTENT AREA --- */}
+            <div className={`reader-content ${readMode}`}>
+                
+                {/* MODE WEBTOON: Render List dengan Lazy Loading */}
+                {readMode === 'webtoon' && (
+                    <div className="webtoon-container">
+                        {images.map((img, idx) => (
+                            <LazyImage 
+                                key={img} 
+                                index={idx}
+                                src={getImageUrl(img)} 
+                                alt={`Page ${idx}`} 
+                                onInView={handleInView}
+                            />
+                        ))}
+                        
+                        {/* Area Tombol Next Chapter di Bawah Scroll */}
+                        {chapters.length > 0 && chapters.indexOf(chapterName) < chapters.length - 1 && (
+                            <div className="next-chapter-area" onClick={handleNextChapter}>
+                                <span>Chapter Selanjutnya →</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* MODE SINGLE: Render Satu Gambar Saja */}
+                {readMode === 'single' && (
+                    <div className="single-container" onClick={(e) => {
+                        // Klik kiri layar = Next, Klik kanan layar = Prev
+                        const width = e.target.clientWidth;
+                        if (e.nativeEvent.offsetX > width / 2) changePage(1);
+                        else changePage(-1);
+                    }}>
+                        <img 
+                            src={getImageUrl(images[currentIndex])} 
+                            alt={`Page ${currentIndex}`} 
+                            className="single-image" 
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* --- FOOTER PROGRESS BAR --- */}
+            <div className={`reader-progress ${showControls ? 'visible' : ''}`}>
+                <input 
+                    type="range" 
+                    min="0" 
+                    max={images.length - 1} 
+                    value={currentIndex} 
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setCurrentIndex(val);
+                        if(readMode === 'webtoon') {
+                            // Scroll ke elemen ybs
+                            const elements = document.querySelectorAll('.image-container');
+                            if(elements[val]) elements[val].scrollIntoView();
+                        }
+                    }} 
+                />
             </div>
         </div>
     );

@@ -6,6 +6,10 @@ export function BatchImportBooks(arg1) {
   return window['go']['main']['App']['BatchImportBooks'](arg1);
 }
 
+export function CheckAccess(arg1) {
+  return window['go']['main']['App']['CheckAccess'](arg1);
+}
+
 export function CreateBook(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateBook'](arg1, arg2, arg3);
 }
@@ -14,12 +18,8 @@ export function DeleteBook(arg1) {
   return window['go']['main']['App']['DeleteBook'](arg1);
 }
 
-export function DeleteImage(arg1, arg2) {
-  return window['go']['main']['App']['DeleteImage'](arg1, arg2);
-}
-
-export function GetBooks() {
-  return window['go']['main']['App']['GetBooks']();
+export function GetBooks(arg1) {
+  return window['go']['main']['App']['GetBooks'](arg1);
 }
 
 export function GetChapters(arg1) {

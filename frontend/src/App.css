@@ -545,3 +545,56 @@ body {
   background-color: #45475a;
   border-radius: 4px;
 }
+
+/* DASHBOARD STYLES */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+.stat-card {
+    background: #1e1e2e;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #313244;
+}
+.stat-card h3 { font-size: 2.5rem; color: #89b4fa; margin: 0; }
+.stat-card p { color: #a6adc8; margin: 5px 0 0; }
+
+.stat-panel {
+    background: #1e1e2e;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #313244;
+}
+.full-width { grid-column: 1 / -1; }
+
+/* TAG MANAGER STYLES */
+.tag-manager-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+}
+.tag-manager-row {
+    background: #181825;
+    padding: 10px 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #313244;
+}
+.tag-count-badge {
+    background: #313244;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #a6adc8;
+}
+.progress-bg { background: #313244; height: 8px; border-radius: 4px; overflow: hidden; }
+.progress-fill { background: #89b4fa; height: 100%; }
+.mini-book-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.mini-book-item { display: flex; gap: 10px; background: #181825; padding: 10px; border-radius: 8px; cursor: pointer; }
+.mini-book-item img { width: 40px; height: 60px; object-fit: cover; border-radius: 4px; }
+.mini-book-item:hover { background: #313244; }

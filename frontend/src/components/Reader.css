@@ -1,0 +1,185 @@
+/* READER WRAPPER */
+.reader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #11111b; /* Warna gelap */
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.reader-wrapper.hide-cursor {
+    cursor: none;
+}
+
+/* HEADER & CONTROLS */
+.reader-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background: rgba(30, 30, 46, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1001;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.reader-header.visible {
+    transform: translateY(0);
+}
+
+.reader-title {
+    color: #cdd6f4;
+    font-weight: bold;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50%;
+}
+
+.reader-btn {
+    background: transparent;
+    border: 1px solid #45475a;
+    color: #cdd6f4;
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.reader-btn:hover { background: #313244; }
+
+.mode-select {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    padding: 5px;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+/* CONTENT AREA */
+.reader-content {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    justify-content: center;
+}
+
+/* Webtoon Mode */
+.webtoon-container {
+    width: 100%;
+    max-width: 800px; /* Batas lebar webtoon supaya enak dibaca */
+    padding-top: 60px;
+    padding-bottom: 60px;
+}
+
+.image-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    background: #000;
+    margin-bottom: 0px; /* Rapat untuk webtoon */
+}
+
+.image-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Placeholder saat Loading */
+.loading-placeholder {
+    width: 100%;
+    height: 800px;
+    background: #181825;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #6c7086;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #313244;
+    border-top: 4px solid #89b4fa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-top: 15px;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Single Mode */
+.single-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.single-image {
+    max-width: 100%;
+    max-height: 100vh;
+    object-fit: contain;
+}
+
+/* PROGRESS BAR FOOTER */
+.reader-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+.reader-progress.visible {
+    transform: translateY(0);
+}
+
+.reader-progress input {
+    width: 80%;
+    cursor: pointer;
+}
+
+/* Tambahkan ini di Reader.css */
+.next-chapter-area {
+    width: 100%;
+    height: 150px;
+    background: #1e1e2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cdd6f4;
+    font-size: 1.2rem;
+    cursor: pointer;
+    border-top: 2px solid #313244;
+    transition: background 0.3s;
+}
+.next-chapter-area:hover {
+    background: #313244;
+    color: #89b4fa;
+}

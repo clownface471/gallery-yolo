@@ -1,6 +1,6 @@
 export namespace main {
 	
-	export class Book {
+	export class BookFrontend {
 	    name: string;
 	    cover: string;
 	    tags: string[];
@@ -13,7 +13,7 @@ export namespace main {
 	    last_read_time: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new Book(source);
+	        return new BookFrontend(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -28,6 +28,28 @@ export namespace main {
 	        this.last_page = source["last_page"];
 	        this.is_favorite = source["is_favorite"];
 	        this.last_read_time = source["last_read_time"];
+	    }
+	}
+	export class SearchQuery {
+	    query: string;
+	    tags: string[];
+	    sort_by: string;
+	    only_fav: boolean;
+	    page: number;
+	    limit: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchQuery(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.query = source["query"];
+	        this.tags = source["tags"];
+	        this.sort_by = source["sort_by"];
+	        this.only_fav = source["only_fav"];
+	        this.page = source["page"];
+	        this.limit = source["limit"];
 	    }
 	}
 

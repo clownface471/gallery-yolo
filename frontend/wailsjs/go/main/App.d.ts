@@ -4,13 +4,13 @@ import {main} from '../models';
 
 export function BatchImportBooks(arg1:string):Promise<Array<string>>;
 
+export function CheckAccess(arg1:string):Promise<boolean>;
+
 export function CreateBook(arg1:string,arg2:string,arg3:boolean):Promise<string>;
 
 export function DeleteBook(arg1:string):Promise<void>;
 
-export function DeleteImage(arg1:string,arg2:string):Promise<void>;
-
-export function GetBooks():Promise<Array<main.Book>>;
+export function GetBooks(arg1:main.SearchQuery):Promise<Array<main.BookFrontend>>;
 
 export function GetChapters(arg1:string):Promise<Array<string>>;
 
